@@ -1,0 +1,40 @@
+diff --git wifi/wifi.c wifi/wifi.c
+index 880f6fc..76611ef 100644
+--- wifi/wifi.c
++++ wifi/wifi.c
+@@ -132,8 +132,27 @@ static char supplicant_name[PROPERTY_VALUE_MAX];
+ /* Is either SUPP_PROP_NAME or P2P_PROP_NAME */
+ static char supplicant_prop_name[PROPERTY_KEY_MAX];
+ 
++#if 1
++#include <sys/syscall.h>
++#endif
++
+ static int insmod(const char *filename, const char *args)
+ {
++#if 1
++	/* O_NOFOLLOW is removed as wlan.ko is symlink pointing to
++	 *         the vendor specfic file which is in readonly location */
++	int fd = open(filename, O_RDONLY | O_CLOEXEC);
++	if (fd == -1) {
++		ALOGD("insmod: open(\"%s\") failed: %s", filename, strerror(errno));
++		return -1;
++	}
++	int rc = syscall(__NR_finit_module, fd, args, 0);
++	if (rc == -1) {
++		ALOGD("finit_module for \"%s\" failed: %s", filename, strerror(errno));
++	}
++	close(fd);
++	return rc;
++#else
+     void *module;
+     unsigned int size;
+     int ret;
+@@ -147,6 +166,7 @@ static int insmod(const char *filename, const char *args)
+     free(module);
+ 
+     return ret;
++#endif
+ }
+ 
+ static int rmmod(const char *modname)
