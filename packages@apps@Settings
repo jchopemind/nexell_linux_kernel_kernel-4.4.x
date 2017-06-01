@@ -1,0 +1,26 @@
+diff --git src/com/android/settings/ChooseLockGeneric.java src/com/android/settings/ChooseLockGeneric.java
+index e059041..366b9c5 100644
+--- src/com/android/settings/ChooseLockGeneric.java
++++ src/com/android/settings/ChooseLockGeneric.java
+@@ -394,7 +394,7 @@ public class ChooseLockGeneric extends SettingsActivity {
+             addPreferencesFromResource(R.xml.security_settings_picker);
+ 
+             // Used for testing purposes
+-            findPreference(KEY_UNLOCK_SET_NONE).setViewId(R.id.lock_none);
++            findPreference(KEY_UNLOCK_SET_OFF).setViewId(R.id.lock_none);
+             findPreference(KEY_SKIP_FINGERPRINT).setViewId(R.id.lock_none);
+             findPreference(KEY_UNLOCK_SET_PIN).setViewId(R.id.lock_pin);
+             findPreference(KEY_UNLOCK_SET_PASSWORD).setViewId(R.id.lock_password);
+diff --git src/com/android/settings/DevelopmentSettings.java src/com/android/settings/DevelopmentSettings.java
+index 9815b41..4df448a 100644
+--- src/com/android/settings/DevelopmentSettings.java
++++ src/com/android/settings/DevelopmentSettings.java
+@@ -834,7 +834,7 @@ public class DevelopmentSettings extends RestrictedSettingsFragment
+             } else {
+                 mPassword.setSummary(R.string.local_backup_password_summary_none);
+             }
+-        } catch (RemoteException e) {
++        } catch (Exception e) {
+             // Not much we can do here
+         }
+     }
