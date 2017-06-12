@@ -1,0 +1,24 @@
+diff --git service/java/com/android/server/wifi/WifiStateMachine.java service/java/com/android/server/wifi/WifiStateMachine.java
+index 89aabcf..33144f5 100644
+--- service/java/com/android/server/wifi/WifiStateMachine.java
++++ service/java/com/android/server/wifi/WifiStateMachine.java
+@@ -3428,6 +3428,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
+ 
+     private WifiInfo getWiFiInfoForUid(int uid) {
+         if (Binder.getCallingUid() == Process.myUid()) {
++			if (mWifiInfo.getMacAddress() == null) {
++				mWifiInfo.setMacAddress(mWifiNative.p2pGetDeviceAddress());
++			}
+             return mWifiInfo;
+         }
+ 
+@@ -3440,6 +3443,9 @@ public class WifiStateMachine extends StateMachine implements WifiNative.WifiRss
+         try {
+             if (packageManager.checkUidPermission(Manifest.permission.LOCAL_MAC_ADDRESS,
+                     uid) == PackageManager.PERMISSION_GRANTED) {
++				if (mWifiInfo.getMacAddress() == null) {
++					mWifiInfo.setMacAddress(mWifiNative.p2pGetDeviceAddress());
++				}
+                 result.setMacAddress(mWifiInfo.getMacAddress());
+             }
+         } catch (RemoteException e) {
