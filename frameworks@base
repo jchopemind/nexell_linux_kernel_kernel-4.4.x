@@ -1,3 +1,70 @@
+diff --git packages/SystemUI/src/com/android/systemui/statusbar/BaseStatusBar.java packages/SystemUI/src/com/android/systemui/statusbar/BaseStatusBar.java
+index 9d22b4a..f8f3b46 100644
+--- packages/SystemUI/src/com/android/systemui/statusbar/BaseStatusBar.java
++++ packages/SystemUI/src/com/android/systemui/statusbar/BaseStatusBar.java
+@@ -62,8 +62,8 @@ import android.service.dreams.IDreamManager;
+ import android.service.notification.NotificationListenerService;
+ import android.service.notification.NotificationListenerService.RankingMap;
+ import android.service.notification.StatusBarNotification;
+-import android.service.vr.IVrManager;
+-import android.service.vr.IVrStateCallbacks;
++// import android.service.vr.IVrManager;
++// import android.service.vr.IVrStateCallbacks;
+ import android.text.TextUtils;
+ import android.util.ArraySet;
+ import android.util.Log;
+@@ -274,7 +274,7 @@ public abstract class BaseStatusBar extends SystemUI implements
+ 
+     protected AssistManager mAssistManager;
+ 
+-    protected boolean mVrMode;
++    // protected boolean mVrMode;
+ 
+     private Set<String> mNonBlockablePkgs;
+ 
+@@ -283,15 +283,16 @@ public abstract class BaseStatusBar extends SystemUI implements
+         return mDeviceProvisioned;
+     }
+ 
+-    private final IVrStateCallbacks mVrStateCallbacks = new IVrStateCallbacks.Stub() {
+-        @Override
+-        public void onVrStateChanged(boolean enabled) {
+-            mVrMode = enabled;
+-        }
+-    };
++    // private final IVrStateCallbacks mVrStateCallbacks = new IVrStateCallbacks.Stub() {
++    //     @Override
++    //     public void onVrStateChanged(boolean enabled) {
++    //         mVrMode = enabled;
++    //     }
++    // };
+ 
+     public boolean isDeviceInVrMode() {
+-        return mVrMode;
++        // return mVrMode;
++		return false;
+     }
+ 
+     protected final ContentObserver mSettingsObserver = new ContentObserver(mHandler) {
+@@ -827,12 +828,12 @@ public abstract class BaseStatusBar extends SystemUI implements
+                 null, null);
+         updateCurrentProfilesCache();
+ 
+-        IVrManager vrManager = IVrManager.Stub.asInterface(ServiceManager.getService("vrmanager"));
+-        try {
+-            vrManager.registerListener(mVrStateCallbacks);
+-        } catch (RemoteException e) {
+-            Slog.e(TAG, "Failed to register VR mode state listener: " + e);
+-        }
++        // IVrManager vrManager = IVrManager.Stub.asInterface(ServiceManager.getService("vrmanager"));
++        // try {
++        //     vrManager.registerListener(mVrStateCallbacks);
++        // } catch (RemoteException e) {
++        //     Slog.e(TAG, "Failed to register VR mode state listener: " + e);
++        // }
+ 
+         mNonBlockablePkgs = new ArraySet<String>();
+         Collections.addAll(mNonBlockablePkgs, mContext.getResources().getStringArray(
 diff --git services/devicepolicy/java/com/android/server/devicepolicy/DevicePolicyManagerService.java services/devicepolicy/java/com/android/server/devicepolicy/DevicePolicyManagerService.java
 index e3b6ecc..9bedfa4 100644
 --- services/devicepolicy/java/com/android/server/devicepolicy/DevicePolicyManagerService.java
