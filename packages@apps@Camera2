@@ -1,0 +1,23 @@
+diff --git src/com/android/camera/processing/imagebackend/TaskCompressImageToJpeg.java src/com/android/camera/processing/imagebackend/TaskCompressImageToJpeg.java
+index 2e5976c..1dc9eef 100644
+--- src/com/android/camera/processing/imagebackend/TaskCompressImageToJpeg.java
++++ src/com/android/camera/processing/imagebackend/TaskCompressImageToJpeg.java
+@@ -404,14 +404,15 @@ public class TaskCompressImageToJpeg extends TaskJpegEncode {
+             exif = new ExifInterface();
+         }
+         Optional<Location> location = Optional.fromNullable(mSession.getLocation());
+-
+-        try {
++	new ExifUtil(exif).populateExif(Optional.of(image),
++		Optional.<CaptureResultProxy>absent(), location);
++        /*try {
+             new ExifUtil(exif).populateExif(Optional.of(image),
+                     Optional.<CaptureResultProxy>of(totalCaptureResultProxyFuture.get()), location);
+         } catch (InterruptedException | ExecutionException e) {
+             new ExifUtil(exif).populateExif(Optional.of(image),
+                     Optional.<CaptureResultProxy>absent(), location);
+-        }
++        }*/
+ 
+         return exif;
+     }
