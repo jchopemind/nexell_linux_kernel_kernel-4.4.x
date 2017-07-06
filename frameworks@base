@@ -1,3 +1,20 @@
+diff --git media/jni/android_media_ImageReader.cpp media/jni/android_media_ImageReader.cpp
+index 724fc02..08d03a6 100644
+--- media/jni/android_media_ImageReader.cpp
++++ media/jni/android_media_ImageReader.cpp
+@@ -552,7 +552,11 @@ static jint ImageReader_imageSetup(JNIEnv* env, jobject thiz, jobject image) {
+                 // Using HAL_PIXEL_FORMAT_RGBA_8888 Gralloc buffers containing JPEGs to get around
+                 // SW write limitations for (b/17379185).
+                 ALOGV("%s: Receiving JPEG in HAL_PIXEL_FORMAT_RGBA_8888 buffer.", __FUNCTION__);
+-            } else {
++            } else if (ctx->getBufferFormat() == 0x1 &&
++		       bufferFormat == 0x2) {
++		    ALOGV("Producer output buffer format: 0x%x, ImageReader configured format: 0x%x",
++			  bufferFormat, ctx->getBufferFormat());
++	    } else {
+                 // Return the buffer to the queue. No need to provide fence, as this buffer wasn't
+                 // used anywhere yet.
+                 bufferConsumer->releaseBuffer(*buffer);
 diff --git packages/SystemUI/src/com/android/systemui/statusbar/BaseStatusBar.java packages/SystemUI/src/com/android/systemui/statusbar/BaseStatusBar.java
 index 9d22b4a..f8f3b46 100644
 --- packages/SystemUI/src/com/android/systemui/statusbar/BaseStatusBar.java
