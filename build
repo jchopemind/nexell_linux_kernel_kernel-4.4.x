@@ -1,5 +1,5 @@
 diff --git core/Makefile core/Makefile
-index d8b4ef8..7dd6456 100644
+index d8b4ef8..42e716b 100644
 --- core/Makefile
 +++ core/Makefile
 @@ -119,10 +119,14 @@ endif
@@ -18,3 +18,14 @@ index d8b4ef8..7dd6456 100644
  endif
  BUILD_VERSION_TAGS += $(BUILD_KEYS)
  BUILD_VERSION_TAGS := $(subst $(space),$(comma),$(sort $(BUILD_VERSION_TAGS)))
+@@ -1779,6 +1783,10 @@ ifdef BOARD_KERNEL_PAGESIZE
+ 	$(hide) echo "$(BOARD_KERNEL_PAGESIZE)" > $(zip_root)/BOOT/pagesize
+ endif
+ endif # BOARD_USES_RECOVERY_AS_BOOT
++ifneq ($(strip $(TARGET_NO_BOOTLOADER)),true)
++	$(hide) mkdir -p $(zip_root)/IMAGES
++	$(ACP) $(PRODUCT_OUT)/bootloader $(zip_root)/IMAGES/
++endif
+ 	$(hide) $(foreach t,$(INSTALLED_RADIOIMAGE_TARGET),\
+ 	            mkdir -p $(zip_root)/RADIO; \
+ 	            $(ACP) $(t) $(zip_root)/RADIO/$(notdir $(t));)
