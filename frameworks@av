@@ -1,0 +1,1269 @@
+diff --git include/media/stagefright/ACodec.h include/media/stagefright/ACodec.h
+index 25f7173..0f8b3fc 100644
+--- include/media/stagefright/ACodec.h
++++ include/media/stagefright/ACodec.h
+@@ -466,6 +466,16 @@ private:
+ 
+     status_t setupEAC3Codec(bool encoder, int32_t numChannels, int32_t sampleRate);
+ 
++#if 1 //    Added by hcJun
++    status_t setupDTSCodec(bool encoder, int32_t numChannels, int32_t sampleRate);
++    status_t setupAPECodec(bool encoder, int32_t numChannels, int32_t sampleRate);
++    status_t setupAC3CodecNexell(bool encoder, int32_t numChannels, int32_t sampleRate);
++    status_t setupFLACCodecNexell(bool encoder, int32_t numChannels, int32_t sampleRate);
++    status_t setupRACodecNexell(bool encoder, int32_t numChannels, int32_t sampleRate, int32_t bitsPerFrame);
++    status_t setupWMACodecNexell(bool encoder, int32_t numChannels, int32_t sampleRate, int32_t blockAlign, int32_t bitRate, int32_t version);
++    status_t setMPGAuidoFormatNexell(bool encoder, int32_t numChannels, int32_t sampleRate);
++#endif
++
+     status_t selectAudioPortFormat(
+             OMX_U32 portIndex, OMX_AUDIO_CODINGTYPE desiredFormat);
+ 
+diff --git include/media/stagefright/MediaDefs.h include/media/stagefright/MediaDefs.h
+index 5f2a32d..efd9e10 100644
+--- include/media/stagefright/MediaDefs.h
++++ include/media/stagefright/MediaDefs.h
+@@ -77,6 +77,38 @@ enum AudioEncoding {
+     kAudioEncodingPcmFloat = 4,
+ };
+ 
++//Added by hcJun
++//////////////////////////////////////////////////////////////////////////////
++//
++//					Nexell Extended Media Defines
++//
++
++//	Container
++extern const char *MEDIA_MIMETYPE_CONTAINER_ASF;
++extern const char *MEDIA_MIMETYPE_CONTAINER_WMV;
++extern const char *MEDIA_MIMETYPE_CONTAINER_RM;
++extern const char *MEDIA_MIMETYPE_CONTAINER_FLV;
++extern const char *MEDIA_MIMETYPE_CONTAINER_MOV;
++
++//	Video
++extern const char *MEDIA_MIMETYPE_VIDEO_WMV;
++extern const char *MEDIA_MIMETYPE_VIDEO_RV;
++extern const char *MEDIA_MIMETYPE_VIDEO_VC1;
++extern const char *MEDIA_MIMETYPE_VIDEO_WVC1;
++extern const char *MEDIA_MIMETYPE_VIDEO_FLV;
++extern const char *MEDIA_MIMETYPE_VIDEO_MP43;
++extern const char *MEDIA_MIMETYPE_VIDEO_DIV3;
++
++//	Audo
++extern const char *MEDIA_MIMETYPE_AUDIO_RA;
++extern const char *MEDIA_MIMETYPE_AUDIO_WMA;
++extern const char *MEDIA_MIMETYPE_AUDIO_APE;
++extern const char *MEDIA_MIMETYPE_AUDIO_DTS;
++
++//
++//////////////////////////////////////////////////////////////////////////////
++
++
+ }  // namespace android
+ 
+ #endif  // MEDIA_DEFS_H_
+diff --git include/media/stagefright/MetaData.h include/media/stagefright/MetaData.h
+index 6ba7b32..394c0bd 100644
+--- include/media/stagefright/MetaData.h
++++ include/media/stagefright/MetaData.h
+@@ -208,6 +208,32 @@ enum {
+     kKeyTemporalLayerCount = 'cLyr', // int32_t, number of temporal layers encoded
+ };
+ 
++//Added by hcJun
++//
++//	For Nexell FFMPEG Extractor
++//
++enum {
++	kKeyRawCodecSpecificData = 'rcsd',
++	kKeyWMVVersion           = 'wmvv',
++	kTypeWMVVer_7            = 'wmv7',
++	kTypeWMVVer_8            = 'wmv8',
++	kTypeWMVVer_9            = 'wmv9',
++	kKeyWMAVersion           = 'wmav',
++	kTypeWMA                 = 'wma ',
++	kTypeWMAPro              = 'wmap',
++	kTypeWMALossLess         = 'wmal',
++
++	kKeyRVVersion            = 'rvvr',
++	kTypeRVVer_G2            = 'rvG2',
++	kTypeRVVer_8             = 'rvv8',
++	kTypeRVVer_9             = 'rvv9',
++
++	kKeyBitspersample        = 'bpsp',
++	kKeyBlockAlign           = 'baln',
++	kKeyFFCodecTag           = 'ffct',
++	kKeyMpegAudioLayer       = 'mpgl',
++};
++
+ enum {
+     kTypeESDS        = 'esds',
+     kTypeAVCC        = 'avcc',
+diff --git media/libstagefright/ACodec.cpp media/libstagefright/ACodec.cpp
+index 37fd5a5..5bc0e85 100644
+--- media/libstagefright/ACodec.cpp
++++ media/libstagefright/ACodec.cpp
+@@ -57,6 +57,18 @@
+ 
+ namespace android {
+ 
++#if 1   //  Added by hcjun for Nexell Audio Decoders.
++#define OMX_IndexParamAudioAc3  (OMX_IndexVendorStartUnused + 0xE0000 + 0x00)
++#define OMX_IndexParamAudioDTS  (OMX_IndexVendorStartUnused + 0xE0000 + 0x01)
++#define OMX_IndexParamAudioFLAC (OMX_IndexVendorStartUnused + 0xE0000 + 0x02)
++#define OMX_IndexParamAudioAPE  (OMX_IndexVendorStartUnused + 0xE0000 + 0x03)
++
++#define OMX_AUDIO_CodingAC3     (OMX_AUDIO_CodingVendorStartUnused + 0xE0000 + 0x00)
++#define OMX_AUDIO_CodingDTS     (OMX_AUDIO_CodingVendorStartUnused + 0xE0000 + 0x01)
++#define OMX_AUDIO_CodingFLAC    (OMX_AUDIO_CodingVendorStartUnused + 0xE0000 + 0x02)
++#define OMX_AUDIO_CodingAPE     (OMX_AUDIO_CodingVendorStartUnused + 0xE0000 + 0x03)
++#endif
++
+ enum {
+     kMaxIndicesToCheck = 32, // used when enumerating supported formats and profiles
+ };
+@@ -1675,6 +1687,33 @@ const char *ACodec::getComponentRole(
+             "audio_decoder.ac3", "audio_encoder.ac3" },
+         { MEDIA_MIMETYPE_AUDIO_EAC3,
+             "audio_decoder.eac3", "audio_encoder.eac3" },
++
++#if 1       //  Added By hcjun
++        { MEDIA_MIMETYPE_VIDEO_WMV,
++             "video_decoder.x-ms-wmv", "video_encoder.x-ms-wmv" },
++        { MEDIA_MIMETYPE_VIDEO_WVC1,
++            "video_decoder.wvc1", "video_encoder.wvc1" },
++        { MEDIA_MIMETYPE_VIDEO_VC1,
++            "video_decoder.vc1", "video_encoder.vc1" },
++        { MEDIA_MIMETYPE_VIDEO_RV,
++             "video_decoder.x-pn-realvideo", "video_encoder.x-pn-realvideo" },
++        { MEDIA_MIMETYPE_VIDEO_FLV,
++             "video_decoder.x-flv", "video_encoder.x-flv" },
++        { MEDIA_MIMETYPE_VIDEO_MP43,
++             "video_decoder.mp43", "video_encoder.mp43" },
++        { MEDIA_MIMETYPE_VIDEO_DIV3,
++             "video_decoder.div3", "video_encoder.div3" },
++
++        { MEDIA_MIMETYPE_AUDIO_DTS,
++             "audio_decoder.dts", "audio_encoder.dts" },
++        { MEDIA_MIMETYPE_AUDIO_RA,
++             "audio_decoder.ra", "audio_encoder.ra" },
++        { MEDIA_MIMETYPE_AUDIO_WMA,
++             "audio_decoder.x-ms-wma", "audio_encoder.x-ms-wma" },
++        { MEDIA_MIMETYPE_AUDIO_APE,
++             "audio_decoder.ape", "audio_encoder.ape" },
++#endif
++
+     };
+ 
+     static const size_t kNumMimeToRole =
+@@ -1711,6 +1750,15 @@ status_t ACodec::setComponentRole(
+             &roleParams, sizeof(roleParams));
+ }
+ 
++#if 1       //  Added By hcjun
++typedef struct OMX_PARAM_NX_CODECTAG{
++    OMX_U32 nSize;
++    OMX_VERSIONTYPE nVersion;
++    OMX_U32 nPortIndex;
++    OMX_S32 nCodecTag;
++} OMX_PARAM_NX_CODECTAG;
++#endif
++
+ status_t ACodec::configureCodec(
+         const char *mime, const sp<AMessage> &msg) {
+     int32_t encoder;
+@@ -2189,6 +2237,79 @@ status_t ACodec::configureCodec(
+             }
+             err = setupG711Codec(encoder, sampleRate, numChannels);
+         }
++#ifdef ENABLE_FFMPEG_EXTRACTOR   // Deleted by hcjun for FFMPEG
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_FLAC)) {
++        int32_t numChannels;
++        int32_t sampleRate;
++        CHECK(msg->findInt32("channel-count", &numChannels));
++        CHECK(msg->findInt32("sample-rate", &sampleRate));
++        setupFLACCodecNexell(encoder, numChannels, sampleRate);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AC3)) {
++        int32_t numChannels;
++        int32_t sampleRate;
++        CHECK(msg->findInt32("channel-count", &numChannels));
++        CHECK(msg->findInt32("sample-rate", &sampleRate));
++        setupAC3CodecNexell(encoder, numChannels, sampleRate);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_DTS)) {
++        int32_t numChannels;
++        int32_t sampleRate;
++        CHECK(msg->findInt32("channel-count", &numChannels));
++        CHECK(msg->findInt32("sample-rate", &sampleRate));
++        setupDTSCodec(encoder, numChannels, sampleRate);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_APE)) {
++        int32_t numChannels;
++        int32_t sampleRate;
++        CHECK(msg->findInt32("channel-count", &numChannels));
++        CHECK(msg->findInt32("sample-rate", &sampleRate));
++        setupAPECodec(encoder, numChannels, sampleRate);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_WMA)) {
++        int32_t numChannels;
++        int32_t sampleRate;
++        int32_t blockAlign=0;
++        int32_t bitRate=0;
++        int32_t version=0;
++        CHECK(msg->findInt32("channel-count", &numChannels));
++        CHECK(msg->findInt32("sample-rate", &sampleRate));
++        msg->findInt32("block-align", &blockAlign);
++        msg->findInt32("bitrate", &bitRate);
++        ALOGD("~~~~~~~~~~~~~~~~~~###################################### +++++ ffmpeg-wma-version = %d, , blockAlign = %d, bitRate = %d",version, blockAlign,bitRate );
++        msg->findInt32("ffmpeg-wma-version", &version);
++        ALOGD("~~~~~~~~~~~~~~~~~~###################################### ----- ffmpeg-wma-version = %d",version );
++        setupWMACodecNexell(encoder, numChannels, sampleRate, blockAlign, bitRate, version);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_RA)) {
++        int32_t numChannels;
++        int32_t sampleRate;
++        int32_t bitsPerSample=0;
++        int32_t bitRate=0;
++        int32_t blockAlign=0;
++        CHECK(msg->findInt32("channel-count", &numChannels));
++        CHECK(msg->findInt32("sample-rate", &sampleRate));
++        msg->findInt32("block-align", &blockAlign);
++        msg->findInt32("bit-per-sample", &bitsPerSample);
++        msg->findInt32("bitrate", &bitRate);
++        setupRACodecNexell(encoder, numChannels, sampleRate, blockAlign);
++    } else if ( !strcasecmp(MEDIA_MIMETYPE_AUDIO_MPEG_LAYER_I, mime) ) {
++        int32_t numChannels;
++        int32_t sampleRate;
++        CHECK(msg->findInt32("channel-count", &numChannels));
++        CHECK(msg->findInt32("sample-rate", &sampleRate));
++        setMPGAuidoFormatNexell(encoder, numChannels, sampleRate);
++    } else if ( !strcasecmp(MEDIA_MIMETYPE_AUDIO_MPEG_LAYER_II, mime) ) {
++        int32_t numChannels;
++        int32_t sampleRate;
++        CHECK(msg->findInt32("channel-count", &numChannels));
++        CHECK(msg->findInt32("sample-rate", &sampleRate));
++        setMPGAuidoFormatNexell(encoder, numChannels, sampleRate);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_RAW)) {
++        int32_t numChannels, sampleRate;
++        if (encoder
++                || !msg->findInt32("channel-count", &numChannels)
++                || !msg->findInt32("sample-rate", &sampleRate)) {
++            err = INVALID_OPERATION;
++        } else {
++            err = setupRawAudioFormat(kPortIndexInput, sampleRate, numChannels);
++        }
++#else
+     } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_FLAC)) {
+         int32_t numChannels = 0, sampleRate = 0, compressionLevel = -1;
+         if (encoder &&
+@@ -2236,6 +2357,7 @@ status_t ACodec::configureCodec(
+         } else {
+             err = setupAC3Codec(encoder, numChannels, sampleRate);
+         }
++#endif
+     } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_EAC3)) {
+         int32_t numChannels;
+         int32_t sampleRate;
+@@ -2247,6 +2369,113 @@ status_t ACodec::configureCodec(
+         }
+     }
+ 
++#ifdef ENABLE_FFMPEG_EXTRACTOR   //  Added by hcjun for FFMPEG Extractor
++    if( !strncmp("OMX.NX.VIDEO_DECODER", mComponentName.c_str(), 20) )
++    {
++        int32_t codecTag = 0;
++
++        if( msg->findInt32("ffmpeg-codec-tag", &codecTag ) )
++        {
++            OMX_INDEXTYPE index;
++            status_t err = mOMX->getExtensionIndex( mNode, "OMX.NX.VIDEO_DECODER.CodecTag", &index);
++            if (err != OK) {
++                ALOGE("getExtensionIndex('OMX.NX.VIDEO_DECODER.CodecTag') returned error 0x%08x", err);
++            }
++
++            OMX_PARAM_NX_CODECTAG def;
++            InitOMXParams(&def);
++            def.nPortIndex = kPortIndexInput;
++            def.nCodecTag = codecTag;
++
++            err = mOMX->setParameter(mNode, index, &def, sizeof(def));
++            if (err != OK) {
++                ALOGE("setParameter('OMX.NX.VIDEO_DECODER.CodecTag') returned error 0x%08x", err);
++            }
++        }
++
++        sp<ABuffer> buffer;
++        if( msg->findBuffer("ffmpeg-extra-data", &buffer) )
++        {
++            if( buffer->size() > 0 &&  !strncmp(mComponentName.c_str(), "OMX.NX.VIDEO", 12))
++            {
++                //  Set FFMPEG Extradata
++                OMX_INDEXTYPE index;
++                status_t err = mOMX->getExtensionIndex( mNode, "OMX.NX.VIDEO_DECODER.Extradata", &index);
++                if (err != OK) {
++                    ALOGE("getExtensionIndex('OMX.NX.VIDEO_DECODER.Extradata') returned error 0x%08x", err);
++                }
++
++                //  Enable ThumbNailMode
++                uint8_t *extData = new uint8_t[buffer->size() + 4];
++                *((int32_t*)extData) = buffer->size();
++                memcpy( extData+4, buffer->base(), buffer->size() );
++                err = mOMX->setParameter(mNode, index, extData, buffer->size()+4);
++                delete []extData;
++
++                if (err != OK) {
++                    ALOGE("setParameter('OMX.NX.VIDEO_DECODER.Extradata') returned error 0x%08x", err);
++                }
++            }
++        }
++
++        int32_t wmvVersion;
++        if (msg->findInt32("ffmpeg-wmv-version", &wmvVersion))
++        {
++            OMX_VIDEO_PARAM_WMVTYPE profile;
++            memset(&profile, 0, sizeof(profile));
++
++            switch( wmvVersion )
++            {
++#if 0
++                case kTypeWMVVer_7:
++                    profile.eFormat = OMX_VIDEO_WMVFormat7;
++                    break;
++                case kTypeWMVVer_8:
++                    profile.eFormat = OMX_VIDEO_WMVFormat8;
++                    break;
++#endif
++                case 'wmv9':// kTypeWMVVer_9
++                    profile.eFormat = OMX_VIDEO_WMVFormat9;
++                    break;
++                default:
++                    profile.eFormat = (OMX_VIDEO_WMVFORMATTYPE)0;   //  VC1
++                    break;
++            }
++            mOMX->setParameter( mNode, OMX_IndexParamVideoWmv, &profile, sizeof(profile) );
++        }
++
++    }
++    else if( !strncmp(mComponentName.c_str(), "OMX.NX.AUDIO_DECODER.FFMPEG", 27 ) )
++    {
++        sp<ABuffer> buffer;
++        if( msg->findBuffer("ffmpeg-extra-data", &buffer) )
++        {
++            if(  buffer->size() > 0 )
++            {
++                //  Set FFMPEG Extradata
++                OMX_INDEXTYPE index;
++                status_t err = mOMX->getExtensionIndex( mNode, "OMX.NX.AUDIO_DECODER.FFMPEG.Extradata", &index);
++                if (err != OK) {
++                    ALOGE("getExtensionIndex('OMX.NX.AUDIO_DECODER.FFMPEG.Extradata') returned error 0x%08x", err);
++                }
++
++                uint8_t *extData = new uint8_t[buffer->size() + 4];
++                *((int32_t*)extData) = buffer->size();
++                memcpy( extData+4, buffer->base(), buffer->size() );
++                ALOGD("==========================================================<<<<<< (%d, size = %d)", __LINE__, (int)buffer->size());
++                hexdump(extData, buffer->size()+4);
++                ALOGD("==========================================================<<<<<< (%d, size = %d)", __LINE__, (int)buffer->size());
++                err = mOMX->setParameter(mNode, index, extData, buffer->size()+4);
++                delete []extData;
++
++                if (err != OK) {
++                    ALOGE("setParameter('OMX.NX.AUDIO_DECODER.FFMPEG.Extradata') returned error 0x%08x", err);
++                }
++            }
++        }
++    }
++#endif
++
+     if (err != OK) {
+         return err;
+     }
+@@ -2861,6 +3090,346 @@ status_t ACodec::setupEAC3Codec(
+             sizeof(def));
+ }
+ 
++#if 1   //  Added by hcjun
++typedef struct OMX_AUDIO_PARAM_AC3TYPE {
++    OMX_U32 nSize;
++    OMX_VERSIONTYPE nVersion;
++    OMX_U32 nPortIndex;
++    OMX_U32 nChannels;
++    OMX_U32 nBitRate;
++    OMX_U32 nSampleRate;
++} OMX_AUDIO_PARAM_AC3TYPE;
++
++typedef struct OMX_AUDIO_PARAM_DTSTYPE {
++    OMX_U32 nSize;
++    OMX_VERSIONTYPE nVersion;
++    OMX_U32 nPortIndex;
++    OMX_U32 nChannels;
++    OMX_U32 nBitRate;
++    OMX_U32 nSampleRate;
++} OMX_AUDIO_PARAM_DTSTYPE;
++
++typedef struct OMX_AUDIO_PARAM_APETYPE {
++    OMX_U32 nSize;
++    OMX_VERSIONTYPE nVersion;
++    OMX_U32 nPortIndex;
++    OMX_U32 nChannels;
++    OMX_U32 nBitRate;
++    OMX_U32 nSampleRate;
++} OMX_AUDIO_PARAM_APETYPE;
++
++typedef struct OMX_AUDIO_PARAM_NX_FLACTYPE{
++    OMX_U32 nSize;
++    OMX_VERSIONTYPE nVersion;
++    OMX_U32 nPortIndex;
++    OMX_U32 nChannels;
++    OMX_U32 nBitRate;
++    OMX_U32 nSampleRate;
++} OMX_AUDIO_PARAM_NX_FLACTYPE;
++
++
++status_t ACodec::setupAC3CodecNexell(bool encoder, int32_t numChannels, int32_t sampleRate)
++{
++    status_t err = setupRawAudioFormat( encoder ? kPortIndexInput : kPortIndexOutput, sampleRate, numChannels);
++    if (err != OK) {
++        return err;
++    }
++
++    if (encoder) {
++        ALOGW("AC3 encoding is not supported.");
++        return INVALID_OPERATION;
++    }
++
++    OMX_AUDIO_PARAM_AC3TYPE def;
++    def.nSize = sizeof(OMX_AUDIO_PARAM_AC3TYPE);
++    def.nVersion.s.nVersionMajor = 1;
++    def.nVersion.s.nVersionMinor = 0;
++    def.nVersion.s.nRevision = 0;
++    def.nVersion.s.nStep = 0;
++
++    InitOMXParams(&def);
++    def.nPortIndex = kPortIndexInput;
++    err = mOMX->getParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioAc3,
++            &def,
++            sizeof(def));
++
++    if (err != OK) {
++        return err;
++    }
++
++    def.nChannels = numChannels;
++    def.nSampleRate = sampleRate;
++    return mOMX->setParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioAc3,
++            &def,
++            sizeof(def));
++}
++
++status_t ACodec::setupFLACCodecNexell(bool encoder, int32_t numChannels, int32_t sampleRate)
++{
++    status_t err = setupRawAudioFormat( encoder ? kPortIndexInput : kPortIndexOutput, sampleRate, numChannels);
++    if (err != OK) {
++        return err;
++    }
++
++    if (encoder) {
++        ALOGW("DTS encoding is not supported.");
++        return INVALID_OPERATION;
++    }
++
++    OMX_AUDIO_PARAM_NX_FLACTYPE def;
++    def.nSize = sizeof(OMX_AUDIO_PARAM_NX_FLACTYPE);
++    def.nVersion.s.nVersionMajor = 1;
++    def.nVersion.s.nVersionMinor = 0;
++    def.nVersion.s.nRevision = 0;
++    def.nVersion.s.nStep = 0;
++
++    InitOMXParams(&def);
++    def.nPortIndex = kPortIndexInput;
++    err = mOMX->getParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioFLAC,
++            &def,
++            sizeof(def));
++
++    if (err != OK) {
++        return err;
++    }
++
++    def.nChannels = numChannels;
++    def.nSampleRate = sampleRate;
++    return mOMX->setParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioFLAC,
++            &def,
++            sizeof(def));
++}
++
++status_t ACodec::setupDTSCodec(bool encoder, int32_t numChannels, int32_t sampleRate)
++{
++    status_t err = setupRawAudioFormat( encoder ? kPortIndexInput : kPortIndexOutput, sampleRate, numChannels);
++    if (err != OK) {
++        return err;
++    }
++
++    if (encoder) {
++        ALOGW("DTS encoding is not supported.");
++        return INVALID_OPERATION;
++    }
++
++    OMX_AUDIO_PARAM_DTSTYPE def;
++    def.nSize = sizeof(OMX_AUDIO_PARAM_DTSTYPE);
++    def.nVersion.s.nVersionMajor = 1;
++    def.nVersion.s.nVersionMinor = 0;
++    def.nVersion.s.nRevision = 0;
++    def.nVersion.s.nStep = 0;
++
++    InitOMXParams(&def);
++    def.nPortIndex = kPortIndexInput;
++    err = mOMX->getParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioDTS,
++            &def,
++            sizeof(def));
++
++    if (err != OK) {
++        return err;
++    }
++
++    def.nChannels = numChannels;
++    def.nSampleRate = sampleRate;
++    return mOMX->setParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioDTS,
++            &def,
++            sizeof(def));
++}
++
++status_t ACodec::setupAPECodec(bool encoder, int32_t numChannels, int32_t sampleRate)
++{
++    status_t err = setupRawAudioFormat( encoder ? kPortIndexInput : kPortIndexOutput, sampleRate, numChannels);
++    if (err != OK) {
++        return err;
++    }
++
++    if (encoder) {
++        ALOGW("APE encoding is not supported.");
++        return INVALID_OPERATION;
++    }
++
++    OMX_AUDIO_PARAM_APETYPE def;
++    def.nSize = sizeof(OMX_AUDIO_PARAM_APETYPE);
++    def.nVersion.s.nVersionMajor = 1;
++    def.nVersion.s.nVersionMinor = 0;
++    def.nVersion.s.nRevision = 0;
++    def.nVersion.s.nStep = 0;
++
++    InitOMXParams(&def);
++    def.nPortIndex = kPortIndexInput;
++    err = mOMX->getParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioAPE,
++            &def,
++            sizeof(def));
++
++    if (err != OK) {
++        return err;
++    }
++
++    def.nChannels = numChannels;
++    def.nSampleRate = sampleRate;
++    return mOMX->setParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioAPE,
++            &def,
++            sizeof(def));
++}
++
++status_t ACodec::setupWMACodecNexell(bool encoder, int32_t numChannels, int32_t sampleRate, int32_t blockAlign, int32_t bitRate, int32_t version)
++{
++    status_t err = setupRawAudioFormat( encoder ? kPortIndexInput : kPortIndexOutput, sampleRate, numChannels);
++    if (err != OK) {
++        return err;
++    }
++
++    if (encoder) {
++        ALOGW("WMA encoding is not supported.");
++        return INVALID_OPERATION;
++    }
++
++    OMX_AUDIO_PARAM_WMATYPE def;
++    def.nSize = sizeof(OMX_AUDIO_PARAM_DTSTYPE);
++    def.nVersion.s.nVersionMajor = 1;
++    def.nVersion.s.nVersionMinor = 0;
++    def.nVersion.s.nRevision = 0;
++    def.nVersion.s.nStep = 0;
++
++    InitOMXParams(&def);
++    def.nPortIndex = kPortIndexInput;
++    err = mOMX->getParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioWma,
++            &def,
++            sizeof(def));
++
++    if (err != OK) {
++        return err;
++    }
++
++    def.nBitRate = bitRate;
++    def.nChannels = numChannels;
++    def.nSamplingRate = sampleRate;
++    def.nBlockAlign = blockAlign;
++    if( version == 'wma ' )
++    {
++        def.eFormat = OMX_AUDIO_WMAFormat7;     //  FFMPEG CODEC_ID_WMAV2
++    }
++    else if( version == 'wmap' )
++    {
++        def.eFormat = OMX_AUDIO_WMAFormat8;     //  FFMPEG CODEC_ID_WMAPRO
++    }
++    else if( version == 'wmal' )
++    {
++        def.eFormat = OMX_AUDIO_WMAFormat9;     //  FFMPEG CODEC_ID_LOSS
++    }
++
++    return mOMX->setParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioWma,
++            &def,
++            sizeof(def));
++
++}
++
++status_t ACodec::setupRACodecNexell(bool encoder, int32_t numChannels, int32_t sampleRate, int32_t bitsPerSamp)
++{
++    status_t err = setupRawAudioFormat( encoder ? kPortIndexInput : kPortIndexOutput, sampleRate, numChannels);
++    ALOGD("setupRACodecNexell() setupRawAudioFormat() return (%d)", err);
++    if (err != OK) {
++        return err;
++    }
++
++    if (encoder) {
++        ALOGW("RA encoding is not supported.");
++        return INVALID_OPERATION;
++    }
++
++    OMX_AUDIO_PARAM_RATYPE def;
++    def.nSize = sizeof(OMX_AUDIO_PARAM_RATYPE);
++    def.nVersion.s.nVersionMajor = 1;
++    def.nVersion.s.nVersionMinor = 0;
++    def.nVersion.s.nRevision = 0;
++    def.nVersion.s.nStep = 0;
++
++    def.nPortIndex = kPortIndexInput;
++    err = mOMX->getParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioRa,
++            &def,
++            sizeof(def));
++
++    if (err != OK) {
++        return err;
++    }
++
++    def.nChannels = numChannels;
++    def.nSamplingRate = sampleRate;
++    def.nBitsPerFrame = bitsPerSamp;
++
++    return mOMX->setParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioRa,
++            &def,
++            sizeof(def));
++}
++
++
++status_t ACodec::setMPGAuidoFormatNexell(bool encoder, int32_t numChannels, int32_t sampleRate)
++{
++    status_t err = setupRawAudioFormat( encoder ? kPortIndexInput : kPortIndexOutput, sampleRate, numChannels);
++    ALOGD("setMPGAuidoFormatNexell() setupRawAudioFormat() return (%d)", err);
++    if (err != OK) {
++        return err;
++    }
++
++    if (encoder) {
++        ALOGW("RA encoding is not supported.");
++        return INVALID_OPERATION;
++    }
++
++    OMX_AUDIO_PARAM_MP3TYPE def;
++    def.nSize = sizeof(OMX_AUDIO_PARAM_MP3TYPE);
++    def.nVersion.s.nVersionMajor = 1;
++    def.nVersion.s.nVersionMinor = 0;
++    def.nVersion.s.nRevision = 0;
++    def.nVersion.s.nStep = 0;
++
++    def.nPortIndex = kPortIndexInput;
++    err = mOMX->getParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioMp3,
++            &def,
++            sizeof(def));
++
++    if (err != OK) {
++        return err;
++    }
++
++    def.nChannels = numChannels;
++    def.nSampleRate = sampleRate;
++
++    return mOMX->setParameter(
++            mNode,
++            (OMX_INDEXTYPE)OMX_IndexParamAudioMp3,
++            &def,
++            sizeof(def));
++}
++
++#endif
++
+ static OMX_AUDIO_AMRBANDMODETYPE pickModeFromBitRate(
+         bool isAMRWB, int32_t bps) {
+     if (isAMRWB) {
+@@ -3215,6 +3784,17 @@ static const struct VideoCodingMapEntry {
+     { MEDIA_MIMETYPE_VIDEO_VP8, OMX_VIDEO_CodingVP8 },
+     { MEDIA_MIMETYPE_VIDEO_VP9, OMX_VIDEO_CodingVP9 },
+     { MEDIA_MIMETYPE_VIDEO_DOLBY_VISION, OMX_VIDEO_CodingDolbyVision },
++
++#if 1 // Added by hcjun for Android Video Codec
++    { MEDIA_MIMETYPE_VIDEO_WMV, OMX_VIDEO_CodingWMV },
++    { MEDIA_MIMETYPE_VIDEO_WVC1, OMX_VIDEO_CodingWMV },
++    { MEDIA_MIMETYPE_VIDEO_VC1, OMX_VIDEO_CodingWMV },
++    { MEDIA_MIMETYPE_VIDEO_RV, OMX_VIDEO_CodingRV },
++    { MEDIA_MIMETYPE_VIDEO_FLV, OMX_VIDEO_CodingMPEG4 },
++    { MEDIA_MIMETYPE_VIDEO_MP43, OMX_VIDEO_CodingMPEG4 },
++    { MEDIA_MIMETYPE_VIDEO_DIV3, OMX_VIDEO_CodingMPEG4 },
++#endif
++
+ };
+ 
+ static status_t GetVideoCodingTypeFromMime(
+@@ -5201,7 +5781,7 @@ status_t ACodec::getPortFormat(OMX_U32 portIndex, sp<AMessage> &notify) {
+                     }
+                     break;
+                 }
+-
++#ifndef ENABLE_FFMPEG_EXTRACTOR   //  Delete by hcjun
+                 case OMX_AUDIO_CodingFLAC:
+                 {
+                     OMX_AUDIO_PARAM_FLACTYPE params;
+@@ -5219,7 +5799,7 @@ status_t ACodec::getPortFormat(OMX_U32 portIndex, sp<AMessage> &notify) {
+                     notify->setInt32("sample-rate", params.nSampleRate);
+                     break;
+                 }
+-
++#endif
+                 case OMX_AUDIO_CodingMP3:
+                 {
+                     OMX_AUDIO_PARAM_MP3TYPE params;
+@@ -5358,6 +5938,101 @@ status_t ACodec::getPortFormat(OMX_U32 portIndex, sp<AMessage> &notify) {
+                     break;
+                 }
+ 
++#ifdef ENABLE_FFMPEG_EXTRACTOR // Added by hcjun
++                case OMX_AUDIO_CodingDTS:    //   Nexell DTS
++                {
++                    OMX_AUDIO_PARAM_DTSTYPE params;
++                    InitOMXParams(&params);
++                    params.nPortIndex = portIndex;
++                    CHECK_EQ((status_t)OK, mOMX->getParameter(
++                            mNode,
++                            (OMX_INDEXTYPE)OMX_IndexParamAudioDTS,
++                            &params,
++                            sizeof(params)));
++                    notify->setString("mime", MEDIA_MIMETYPE_AUDIO_DTS);
++                    notify->setInt32("channel-count", params.nChannels);
++                    notify->setInt32("sample-rate", params.nSampleRate);
++                    break;
++                }
++                case OMX_AUDIO_CodingAPE:    //   Nexell APE
++                {
++                    OMX_AUDIO_PARAM_DTSTYPE params;
++                    InitOMXParams(&params);
++                    params.nPortIndex = portIndex;
++                    CHECK_EQ((status_t)OK, mOMX->getParameter(
++                            mNode,
++                            (OMX_INDEXTYPE)OMX_IndexParamAudioAPE,
++                            &params,
++                            sizeof(params)));
++                    notify->setString("mime", MEDIA_MIMETYPE_AUDIO_APE);
++                    notify->setInt32("channel-count", params.nChannels);
++                    notify->setInt32("sample-rate", params.nSampleRate);
++                    break;
++                }
++                case OMX_AUDIO_CodingAC3:    //   Nexell AC3
++                {
++                    OMX_AUDIO_PARAM_AC3TYPE params;
++                    InitOMXParams(&params);
++                    params.nPortIndex = portIndex;
++                    CHECK_EQ((status_t)OK, mOMX->getParameter(
++                            mNode,
++                            (OMX_INDEXTYPE)OMX_IndexParamAudioAc3,
++                            &params,
++                            sizeof(params)));
++                    notify->setString("mime", MEDIA_MIMETYPE_AUDIO_AC3);
++                    notify->setInt32("channel-count", params.nChannels);
++                    notify->setInt32("sample-rate", params.nSampleRate);
++                    break;
++                }
++                case OMX_AUDIO_CodingFLAC:    //   Nexell FLAC
++                {
++                    OMX_AUDIO_PARAM_AC3TYPE params;
++                    InitOMXParams(&params);
++                    params.nPortIndex = portIndex;
++                    CHECK_EQ((status_t)OK, mOMX->getParameter(
++                            mNode,
++                            (OMX_INDEXTYPE)OMX_IndexParamAudioAc3,
++                            &params,
++                            sizeof(params)));
++                    notify->setString("mime", MEDIA_MIMETYPE_AUDIO_AC3);
++                    notify->setInt32("channel-count", params.nChannels);
++                    notify->setInt32("sample-rate", params.nSampleRate);
++                    break;
++                }
++
++                case OMX_AUDIO_CodingWMA:    //   Nexell WMA
++                {
++                    OMX_AUDIO_PARAM_WMATYPE params;
++                    InitOMXParams(&params);
++                    params.nPortIndex = portIndex;
++                    CHECK_EQ((status_t)OK, mOMX->getParameter(
++                            mNode,
++                            (OMX_INDEXTYPE)OMX_IndexParamAudioWma,
++                            &params,
++                            sizeof(params)));
++                    notify->setString("mime", MEDIA_MIMETYPE_AUDIO_WMA);
++                    notify->setInt32("channel-count", params.nChannels);
++                    notify->setInt32("sample-rate", params.nSamplingRate);
++                    break;
++                }
++
++                case OMX_AUDIO_CodingRA:    //   Nexell RA
++                {
++                    OMX_AUDIO_PARAM_RATYPE params;
++                    InitOMXParams(&params);
++                    params.nPortIndex = portIndex;
++                    CHECK_EQ((status_t)OK, mOMX->getParameter(
++                            mNode,
++                            (OMX_INDEXTYPE)OMX_IndexParamAudioRa,
++                            &params,
++                            sizeof(params)));
++                    notify->setString("mime", MEDIA_MIMETYPE_AUDIO_RA);
++                    notify->setInt32("channel-count", params.nChannels);
++                    notify->setInt32("sample-rate", params.nSamplingRate);
++                    break;
++                }
++
++#endif
+                 default:
+                     ALOGE("Unsupported audio coding: %s(%d)\n",
+                             asString(audioDef->eEncoding), audioDef->eEncoding);
+diff --git media/libstagefright/Android.mk media/libstagefright/Android.mk
+index 3848502..b96732d 100644
+--- media/libstagefright/Android.mk
++++ media/libstagefright/Android.mk
+@@ -134,6 +134,25 @@ endif
+ LOCAL_CLANG := true
+ LOCAL_SANITIZE := unsigned-integer-overflow signed-integer-overflow
+ 
++ifeq ($(EN_FFMPEG_EXTRACTOR),true)
++FFMPEG_PATH     := $(TOP)/hardware/nexell/s5pxx18/omx/codec/ffmpeg
++LOCAL_CPPFLAGS_32  += -DENABLE_FFMPEG_EXTRACTOR=1
++LOCAL_CFLAGS_32    += -D__STDC_CONSTANT_MACROS=1 -D__STDINT_LIMITS=1
++LOCAL_C_INCLUDES_32 += $(FFMPEG_PATH)/32bit/include \
++                $(TOP)/hardware/nexell/s5pxx18/omx/extractor/ffmpeg
++
++LOCAL_STATIC_LIBRARIES_32 += libNX_FFMpegExtractor
++
++LOCAL_LDFLAGS_32 += \
++        -L$(FFMPEG_PATH)/32bit/libs     \
++        -lavutil                        \
++        -lavcodec               \
++        -lavformat              \
++        -lavdevice              \
++        -lavfilter              \
++        -lswresample
++endif   # EN_FFMPEG_EXTRACTOR
++
+ LOCAL_MODULE:= libstagefright
+ 
+ LOCAL_MODULE_TAGS := optional
+diff --git media/libstagefright/DataSource.cpp media/libstagefright/DataSource.cpp
+index 163a527..754cfe1 100644
+--- media/libstagefright/DataSource.cpp
++++ media/libstagefright/DataSource.cpp
+@@ -35,6 +35,11 @@
+ 
+ #include "matroska/MatroskaExtractor.h"
+ 
++//	Added by hcjun
++#ifdef ENABLE_FFMPEG_EXTRACTOR
++#include <FFmpegExtractor.h>
++#endif
++
+ #include <media/IMediaHTTPConnection.h>
+ #include <media/IMediaHTTPService.h>
+ #include <media/stagefright/foundation/ADebug.h>
+@@ -129,6 +134,10 @@ bool DataSource::sniff(
+         }
+     }
+ 
++	//	hcjun : for FFMPEG Extractor
++    List<SnifferFunc>::iterator it_end = gSniffers.end();
++    it_end--;
++
+     for (List<SnifferFunc>::iterator it = gSniffers.begin();
+          it != gSniffers.end(); ++it) {
+         String8 newMimeType;
+@@ -143,6 +152,23 @@ bool DataSource::sniff(
+         }
+     }
+ 
++	//	hcjun : This is for FFMPEG Sniffer
++    if( (*confidence) == 0.0 )
++    {
++        List<SnifferFunc>::iterator it = gSniffers.end();
++        it--;
++        String8 newMimeType;
++        float newConfidence;
++        sp<AMessage> newMeta;
++        if ((*it)(this, &newMimeType, &newConfidence, &newMeta)) {
++            if (newConfidence > *confidence) {
++                *mimeType = newMimeType;
++                *confidence = newConfidence;
++                *meta = newMeta;
++            }
++        }
++    }
++
+     return *confidence > 0.0;
+ }
+ 
+@@ -158,6 +184,10 @@ void DataSource::RegisterSniffer_l(SnifferFunc func) {
+     gSniffers.push_back(func);
+ }
+ 
++//
++//	hcjun : Don't change Sniffer Ordering(Best Media Scaning)
++//
++
+ // static
+ void DataSource::RegisterDefaultSniffers() {
+     Mutex::Autolock autoLock(gSnifferMutex);
+@@ -172,6 +202,9 @@ void DataSource::RegisterDefaultSniffers() {
+     RegisterSniffer_l(SniffFLAC);
+     RegisterSniffer_l(SniffAMR);
+     RegisterSniffer_l(SniffMPEG2TS);
++#ifdef ENABLE_FFMPEG_EXTRACTOR
++    RegisterSniffer_l(SniffAVIFFMPEG);
++#endif
+     RegisterSniffer_l(SniffMP3);
+     RegisterSniffer_l(SniffAAC);
+     RegisterSniffer_l(SniffMPEG2PS);
+@@ -180,6 +213,10 @@ void DataSource::RegisterDefaultSniffers() {
+         RegisterSniffer_l(SniffWVM);
+     }
+     RegisterSniffer_l(SniffMidi);
++#ifdef ENABLE_FFMPEG_EXTRACTOR
++    RegisterSniffer_l(SniffFFMPEG);
++#endif
++
+ 
+     char value[PROPERTY_VALUE_MAX];
+     if (property_get("drm.service.enabled", value, NULL)
+diff --git media/libstagefright/MediaDefs.cpp media/libstagefright/MediaDefs.cpp
+index 845462b..70e2da3 100644
+--- media/libstagefright/MediaDefs.cpp
++++ media/libstagefright/MediaDefs.cpp
+@@ -66,4 +66,34 @@ const char *MEDIA_MIMETYPE_TEXT_CEA_608 = "text/cea-608";
+ const char *MEDIA_MIMETYPE_TEXT_CEA_708 = "text/cea-708";
+ const char *MEDIA_MIMETYPE_DATA_TIMED_ID3 = "application/x-id3v4";
+ 
++//ADD hcjun
++//////////////////////////////////////////////////////////////////////////////
++//
++//					Nexell Extended Media Defines
++//
++const char *MEDIA_MIMETYPE_CONTAINER_ASF = "video/x-ms-asf";
++const char *MEDIA_MIMETYPE_CONTAINER_WMV = "video/x-ms-wmv";
++const char *MEDIA_MIMETYPE_CONTAINER_RM = "video/rm";
++const char *MEDIA_MIMETYPE_CONTAINER_FLV = "video/x-flv";
++const char *MEDIA_MIMETYPE_CONTAINER_MOV = "video/mov";
++
++//	Video
++const char *MEDIA_MIMETYPE_VIDEO_VC1 = "video/vc1";
++const char *MEDIA_MIMETYPE_VIDEO_WVC1 = "video/wvc1";
++const char *MEDIA_MIMETYPE_VIDEO_RV = "video/x-pn-realvideo";
++const char *MEDIA_MIMETYPE_VIDEO_FLV = "video/x-flv";
++const char *MEDIA_MIMETYPE_VIDEO_MP43 = "video/mp43";
++const char *MEDIA_MIMETYPE_VIDEO_DIV3 = "video/div3";
++const char *MEDIA_MIMETYPE_VIDEO_WMV = "video/x-ms-wmv";
++
++//	Audio
++const char *MEDIA_MIMETYPE_AUDIO_RA = "audio/ra";
++const char *MEDIA_MIMETYPE_AUDIO_WMA = "audio/x-ms-wma";
++const char *MEDIA_MIMETYPE_AUDIO_APE = "audio/ape";
++const char *MEDIA_MIMETYPE_AUDIO_DTS = "audio/dts";
++
++//
++//////////////////////////////////////////////////////////////////////////////
++
++
+ }  // namespace android
+diff --git media/libstagefright/MediaExtractor.cpp media/libstagefright/MediaExtractor.cpp
+index 92ce88c..26989ef 100644
+--- media/libstagefright/MediaExtractor.cpp
++++ media/libstagefright/MediaExtractor.cpp
+@@ -49,6 +49,10 @@
+ #include <utils/String8.h>
+ #include <private/android_filesystem_config.h>
+ 
++//Add hcjun
++#ifdef ENABLE_FFMPEG_EXTRACTOR
++#include <FFmpegExtractor.h>
++#endif
+ 
+ namespace android {
+ 
+@@ -197,8 +201,8 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
+     sp<AMessage> meta;
+ 
+     String8 tmp;
++    float confidence;
+     if (mime == NULL) {
+-        float confidence;
+         if (!source->sniff(&tmp, &confidence, &meta)) {
+             ALOGV("FAILED to autodetect media content.");
+ 
+@@ -232,6 +236,56 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
+         }
+     }
+ 
++    ALOGI("Autodetected media content as '%s' with confidence %.2f", mime, confidence);
++
++#ifdef ENABLE_FFMPEG_EXTRACTOR  //Add hcjun
++    MediaExtractor *ret = NULL;
++#if 1 // use android default extractor for CTS
++    if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MPEG4)
++            || !strcasecmp(mime, "audio/mp4")) {
++        ret = new MPEG4Extractor(source);
++#else // use android default extractor for mp4 audio file, use ffmpeg extractor for video file.
++    if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MPEG4)) {
++        ret = new FFmpegExtractor(source);
++    } else if (!strcasecmp(mime, "audio/mp4")) {
++        ret = new MPEG4Extractor(source);
++#endif
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_MPEG)) {
++        ret = new MP3Extractor(source, meta);
++    } else if (!strcasecmp(mime, "audio/ape")) {
++        ret = new FFmpegExtractor(source);
++    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_AVI) ){
++        ret = new FFmpegExtractor(source);
++    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_WMV) ){
++        ret = new FFmpegExtractor(source);
++    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_RM) ){
++        ret = new FFmpegExtractor(source);
++    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_FLV) ){
++        ret = new FFmpegExtractor(source);
++    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_ASF) ){
++        ret = new FFmpegExtractor(source);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AMR_NB)
++            || !strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AMR_WB)) {
++        ret = new AMRExtractor(source);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_FLAC)) {
++        ret = new FLACExtractor(source);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_WAV)) {
++        ret = new WAVExtractor(source);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_OGG)) {
++        ret = new OggExtractor(source);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MATROSKA)) {
++        ret = new FFmpegExtractor(source);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_WVM)) {
++        // Return now.  WVExtractor should not have the DrmFlag set in the block below.
++        return new WVMExtractor(source);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AAC_ADTS)) {
++        ret = new AACExtractor(source, meta);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MPEG2TS)) {
++        ret = new FFmpegExtractor(source);
++    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MPEG2PS)) {
++        ret = new FFmpegExtractor(source);
++    }
++#else
+     MediaExtractor *ret = NULL;
+     if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MPEG4)
+             || !strcasecmp(mime, "audio/mp4")) {
+@@ -261,6 +315,7 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
+     } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_MIDI)) {
+         ret = new MidiExtractor(source);
+     }
++#endif
+ 
+     if (ret != NULL) {
+        if (isDrm) {
+diff --git media/libstagefright/StagefrightMediaScanner.cpp media/libstagefright/StagefrightMediaScanner.cpp
+index f0c27ac..dacd6a1 100644
+--- media/libstagefright/StagefrightMediaScanner.cpp
++++ media/libstagefright/StagefrightMediaScanner.cpp
+@@ -41,6 +41,8 @@ static bool FileHasAcceptableExtension(const char *extension) {
+         ".wav", ".amr", ".midi", ".xmf", ".rtttl", ".rtx", ".ota",
+         ".mkv", ".mka", ".webm", ".ts", ".fl", ".flac", ".mxmf",
+         ".avi", ".mpeg", ".mpg", ".awb", ".mpga", ".mov"
++		// Added by hcjun
++		,".rmvb", ".asf", ".wmv", ".rv", ".trp", ".tp", ".rm", ".flv", ".m2ts"
+     };
+     static const size_t kNumValidExtensions =
+         sizeof(kValidExtensions) / sizeof(kValidExtensions[0]);
+diff --git media/libstagefright/StagefrightMetadataRetriever.cpp media/libstagefright/StagefrightMetadataRetriever.cpp
+index be5067d..6673cd0 100644
+--- media/libstagefright/StagefrightMetadataRetriever.cpp
++++ media/libstagefright/StagefrightMetadataRetriever.cpp
+@@ -423,7 +423,12 @@ static VideoFrame *extractVideoFrame(
+     int32_t srcFormat;
+     CHECK(outputFormat->findInt32("color-format", &srcFormat));
+ 
++#if 1   //  Added by hcjun : Set forced YUV420 Planar for Nexell VPU Video Decoder
++    ColorConverter converter(
++            (OMX_COLOR_FORMATTYPE)OMX_COLOR_FormatYUV420Planar/*srcFormat*/, OMX_COLOR_Format16bitRGB565);
++#else
+     ColorConverter converter((OMX_COLOR_FORMATTYPE)srcFormat, OMX_COLOR_Format16bitRGB565);
++#endif
+ 
+     if (converter.isValid()) {
+         err = converter.convert(
+diff --git media/libstagefright/Utils.cpp media/libstagefright/Utils.cpp
+index 1c76ad7..ef7f924 100644
+--- media/libstagefright/Utils.cpp
++++ media/libstagefright/Utils.cpp
+@@ -637,6 +637,53 @@ status_t convertMetaDataToMessage(
+         msg->setInt32("track-id", trackID);
+     }
+ 
++#if 1   // Added by hcjun
++    int32_t blockAlign;
++    if (meta->findInt32(kKeyBlockAlign, &blockAlign)) {
++        msg->setInt32("block-align", blockAlign);
++    }
++
++    int32_t bitPerSample;
++    if (meta->findInt32(kKeyBitspersample, &bitPerSample)) {
++        msg->setInt32("bit-per-sample", bitPerSample);
++    }
++
++    int32_t wmaVersion;
++    if( meta->findInt32(kKeyWMAVersion, &wmaVersion ) )
++    {
++        msg->setInt32( "ffmpeg-wma-version", wmaVersion );
++    }
++
++    int32_t wmvVersion;
++    if( meta->findInt32(kKeyWMVVersion, &wmvVersion ) )
++    {
++        msg->setInt32( "ffmpeg-wmv-version", wmvVersion );
++    }
++
++    {
++        int32_t codecTag;
++        if( meta->findInt32(kKeyFFCodecTag, &codecTag ) )
++        {
++            msg->setInt32( "ffmpeg-codec-tag", codecTag );
++        }
++
++        uint32_t type;
++        const void *data;
++        size_t size;
++        if( meta->findData(kKeyRawCodecSpecificData, &type, &data, &size) )
++        {
++            if( size > 0 )
++            {
++                sp<ABuffer> buffer = new ABuffer(64*1024);
++                buffer->setRange(0, 0);
++                memcpy( buffer->data() + buffer->size() , data, size );
++                buffer->setRange(0, buffer->size() + size);
++                msg->setBuffer( "ffmpeg-extra-data", buffer );
++            }
++        }
++    }
++#endif
++
+     if (!strncasecmp("video/", mime, 6)) {
+         int32_t width, height;
+         if (!meta->findInt32(kKeyWidth, &width)
+@@ -1502,6 +1549,18 @@ static const struct mime_conv_t mimeLookup[] = {
+     { MEDIA_MIMETYPE_AUDIO_RAW,         AUDIO_FORMAT_PCM_16_BIT },
+     { MEDIA_MIMETYPE_AUDIO_AMR_NB,      AUDIO_FORMAT_AMR_NB },
+     { MEDIA_MIMETYPE_AUDIO_AMR_WB,      AUDIO_FORMAT_AMR_WB },
++
++#if 1    //  Added by hcjun for audio mime-type
++    { MEDIA_MIMETYPE_AUDIO_MPEG_LAYER_I,AUDIO_FORMAT_DEFAULT },
++    { MEDIA_MIMETYPE_AUDIO_MPEG_LAYER_II,AUDIO_FORMAT_DEFAULT },
++    { MEDIA_MIMETYPE_AUDIO_AC3,         AUDIO_FORMAT_DEFAULT },
++    { MEDIA_MIMETYPE_AUDIO_DTS,         AUDIO_FORMAT_DEFAULT },
++    { MEDIA_MIMETYPE_AUDIO_RA,          AUDIO_FORMAT_DEFAULT },
++    { MEDIA_MIMETYPE_AUDIO_WMA,         AUDIO_FORMAT_DEFAULT },
++    { MEDIA_MIMETYPE_AUDIO_FLAC,        AUDIO_FORMAT_DEFAULT },
++    { MEDIA_MIMETYPE_AUDIO_APE,         AUDIO_FORMAT_DEFAULT },
++#endif
++
+     { MEDIA_MIMETYPE_AUDIO_AAC,         AUDIO_FORMAT_AAC },
+     { MEDIA_MIMETYPE_AUDIO_VORBIS,      AUDIO_FORMAT_VORBIS },
+     { MEDIA_MIMETYPE_AUDIO_OPUS,        AUDIO_FORMAT_OPUS},
+diff --git media/libstagefright/matroska/MatroskaExtractor.cpp media/libstagefright/matroska/MatroskaExtractor.cpp
+index 0f9430e..94adfa7 100644
+--- media/libstagefright/matroska/MatroskaExtractor.cpp
++++ media/libstagefright/matroska/MatroskaExtractor.cpp
+@@ -1215,6 +1215,25 @@ void MatroskaExtractor::addTracks() {
+                                 codecID);
+                         continue;
+                     }
++#if 1	//	Added by hcjun for XVID
++                } else if (!strcmp("V_MS/VFW/FOURCC", codecID)) {
++                    if (codecPrivateSize >= 40) {
++                        uint32_t fourcc;
++                        memcpy(&fourcc, codecPrivate+16, 4);
++                        if( fourcc != 0x44495658)   //  "XVID"
++                        {
++                            ALOGW("%s is detected, but does not support fourcc 0x%x.",
++                                    codecID, fourcc);
++                            continue;
++                        }
++                        meta->setCString(
++                                kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_MPEG4);
++                    }else{
++                        ALOGW("%s is detected, but too short codecPrivate data.",
++                                codecID);
++                        continue;
++                    }
++#endif
+                 } else if (!strcmp("V_VP8", codecID)) {
+                     meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_VP8);
+                 } else if (!strcmp("V_VP9", codecID)) {
+@@ -1263,6 +1282,16 @@ void MatroskaExtractor::addTracks() {
+                     mSeekPreRollNs = track->GetSeekPreRoll();
+                 } else if (!strcmp("A_MPEG/L3", codecID)) {
+                     meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_MPEG);
++
++#if 1   //  Added by hcjun Support AC3 & FLAC Container
++                } else if (!strcmp("A_AC3", codecID)) {
++                    meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_AC3);
++                } else if (!strcmp("A_FLAC", codecID)) {
++                    meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_FLAC);
++                } else if (!strcmp("A_DTS", codecID)) {
++                    meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_DTS);
++#endif
++
+                 } else {
+                     ALOGW("%s is not supported.", codecID);
+                     continue;
+diff --git services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy
+index 165694c..00f8e8c 100644
+--- services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy
++++ services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy
+@@ -45,3 +45,7 @@ socket: 1
+ connect: 1
+ fcntl64: 1
+ rt_tgsigqueueinfo: 1
++
++# add hcjun
++gettimeofday: 1
++nanosleep: 1
