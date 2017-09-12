@@ -1,0 +1,19 @@
+diff --git include/hardware/hwcomposer.h include/hardware/hwcomposer.h
+index 61218bb..7c84888 100644
+--- include/hardware/hwcomposer.h
++++ include/hardware/hwcomposer.h
+@@ -771,10 +771,10 @@ typedef struct hwc_composer_device_1 {
+      */
+     int (*setCursorPositionAsync)(struct hwc_composer_device_1 *dev, int disp, int x_pos, int y_pos);
+ 
+-    /*
+-     * Reserved for future use. Must be NULL.
+-     */
+-    void* reserved_proc[1];
++	/*
++	 * Nexell extension for framebuffer target sync when no use sync mechanism
++	 */
++	int (*setFramebufferTarget)(struct hwc_composer_device_1 *dev, int32_t id, hwc_layer_1_t *layer);
+ 
+ } hwc_composer_device_1_t;
+ 
