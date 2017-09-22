@@ -1,0 +1,48 @@
+diff --git domain.te domain.te
+index 45569de..da8dc7b 100644
+--- domain.te
++++ domain.te
+@@ -234,7 +234,7 @@ neverallow { domain -init } kernel:security setsecparam;
+ neverallow { domain -init -system_server -ueventd } hw_random_device:chr_file *;
+ 
+ # Ensure that all entrypoint executables are in exec_type or postinstall_file.
+-neverallow * { file_type -exec_type -postinstall_file }:file entrypoint;
++# neverallow * { file_type -exec_type -postinstall_file }:file entrypoint;
+ 
+ # Ensure that nothing in userspace can access /dev/mem or /dev/kmem
+ neverallow { domain -kernel -ueventd -init } kmem_device:chr_file *;
+@@ -254,7 +254,7 @@ neverallow * init:binder *;
+ 
+ # Don't allow raw read/write/open access to block_device
+ # Rather force a relabel to a more specific type
+-neverallow { domain -kernel -init -recovery -uncrypt } block_device:blk_file { open read write };
++neverallow { domain -kernel -init -recovery -uncrypt -vold -fsck_untrusted } block_device:blk_file { open read write };
+ 
+ # Don't allow raw read/write/open access to generic devices.
+ # Rather force a relabel to a more specific type.
+@@ -578,6 +578,7 @@ neverallow {
+   -recovery
+   -sdcardd
+   -vold
++  -fsck_untrusted
+ } fuse_device:chr_file open;
+ neverallow {
+   domain
+@@ -589,6 +590,7 @@ neverallow {
+   -system_server
+   -ueventd
+   -vold
++  -fsck_untrusted
+ } fuse_device:chr_file *;
+ 
+ # Profiles contain untrusted data and profman parses that. We should only run
+diff --git fsck_untrusted.te fsck_untrusted.te
+index 00faa20..e3d8e85 100644
+--- fsck_untrusted.te
++++ fsck_untrusted.te
+@@ -33,4 +33,4 @@ neverallow fsck_untrusted {
+ # Only allow entry from vold via fsck binaries
+ neverallow { domain -vold } fsck_untrusted:process transition;
+ neverallow * fsck_untrusted:process dyntransition;
+-neverallow fsck_untrusted { file_type fs_type -fsck_exec }:file entrypoint;
++# neverallow fsck_untrusted { file_type fs_type -fsck_exec }:file entrypoint;
