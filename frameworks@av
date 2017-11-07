@@ -1,3 +1,25 @@
+diff --git camera/cameraserver/cameraserver.rc camera/cameraserver/cameraserver.rc
+index fea5a1d..84ad572 100644
+--- camera/cameraserver/cameraserver.rc
++++ camera/cameraserver/cameraserver.rc
+@@ -1,5 +1,5 @@
+ service cameraserver /system/bin/cameraserver
+-    class main
++    class late_start
+     user cameraserver
+     group audio camera input drmrpc
+     ioprio rt 4
+diff --git drm/drmserver/drmserver.rc drm/drmserver/drmserver.rc
+index de46fb9..3767560 100644
+--- drm/drmserver/drmserver.rc
++++ drm/drmserver/drmserver.rc
+@@ -1,5 +1,5 @@
+ service drm /system/bin/drmserver
+-    class main
++    class late_start
+     user drm
+     group drm system inet drmrpc readproc
+     writepid /dev/cpuset/foreground/tasks
 diff --git include/media/stagefright/ACodec.h include/media/stagefright/ACodec.h
 index 25f7173..0f8b3fc 100644
 --- include/media/stagefright/ACodec.h
@@ -1012,7 +1034,7 @@ index 845462b..70e2da3 100644
 +
  }  // namespace android
 diff --git media/libstagefright/MediaExtractor.cpp media/libstagefright/MediaExtractor.cpp
-index 92ce88c..26989ef 100644
+index 92ce88c..17cdade 100644
 --- media/libstagefright/MediaExtractor.cpp
 +++ media/libstagefright/MediaExtractor.cpp
 @@ -49,6 +49,10 @@
@@ -1036,7 +1058,7 @@ index 92ce88c..26989ef 100644
          if (!source->sniff(&tmp, &confidence, &meta)) {
              ALOGV("FAILED to autodetect media content.");
  
-@@ -232,6 +236,56 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
+@@ -232,6 +236,58 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
          }
      }
  
@@ -1060,6 +1082,7 @@ index 92ce88c..26989ef 100644
 +        ret = new FFmpegExtractor(source);
 +    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_AVI) ){
 +        ret = new FFmpegExtractor(source);
++ /*       
 +    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_WMV) ){
 +        ret = new FFmpegExtractor(source);
 +    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_RM) ){
@@ -1068,6 +1091,7 @@ index 92ce88c..26989ef 100644
 +        ret = new FFmpegExtractor(source);
 +    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_ASF) ){
 +        ret = new FFmpegExtractor(source);
++  */      
 +    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AMR_NB)
 +            || !strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AMR_WB)) {
 +        ret = new AMRExtractor(source);
@@ -1093,7 +1117,7 @@ index 92ce88c..26989ef 100644
      MediaExtractor *ret = NULL;
      if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MPEG4)
              || !strcasecmp(mime, "audio/mp4")) {
-@@ -261,6 +315,7 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
+@@ -261,6 +317,7 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
      } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_MIDI)) {
          ret = new MidiExtractor(source);
      }
@@ -1255,20 +1279,8 @@ index 0f9430e..94adfa7 100644
                  } else {
                      ALOGW("%s is not supported.", codecID);
                      continue;
-diff --git services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy
-index 165694c..00f8e8c 100644
---- services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy
-+++ services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy
-@@ -45,3 +45,7 @@ socket: 1
- connect: 1
- fcntl64: 1
- rt_tgsigqueueinfo: 1
-+
-+# add hcjun
-+gettimeofday: 1
-+nanosleep: 1
 diff --git media/libstagefright/omx/SoftVideoEncoderOMXComponent.cpp media/libstagefright/omx/SoftVideoEncoderOMXComponent.cpp
-index 0f9c118..3711f6d 100644
+index 0f9c118..75df9ae 100644
 --- media/libstagefright/omx/SoftVideoEncoderOMXComponent.cpp
 +++ media/libstagefright/omx/SoftVideoEncoderOMXComponent.cpp
 @@ -541,7 +541,8 @@ const uint8_t *SoftVideoEncoderOMXComponent::extractGraphicBuffer(
@@ -1299,4 +1311,48 @@ index 0f9c118..3711f6d 100644
          case HAL_PIXEL_FORMAT_YCbCr_420_888:
              ConvertFlexYUVToPlanar(dst, dstStride, dstVStride, &ycbcr, width, height);
              break;
-
+diff --git media/mediaserver/mediaserver.rc media/mediaserver/mediaserver.rc
+index f6c325c..3a1c4d6 100644
+--- media/mediaserver/mediaserver.rc
++++ media/mediaserver/mediaserver.rc
+@@ -1,5 +1,5 @@
+ service media /system/bin/mediaserver
+-    class main
++    class late_start
+     user media
+     group audio camera inet net_bt net_bt_admin net_bw_acct drmrpc mediadrm
+     ioprio rt 4
+diff --git services/mediacodec/mediacodec.rc services/mediacodec/mediacodec.rc
+index d78e0a4..41e6212 100644
+--- services/mediacodec/mediacodec.rc
++++ services/mediacodec/mediacodec.rc
+@@ -1,5 +1,5 @@
+ service mediacodec /system/bin/mediacodec
+-    class main
++    class late_start
+     user mediacodec
+     group camera drmrpc mediadrm
+     ioprio rt 4
+diff --git services/mediaextractor/mediaextractor.rc services/mediaextractor/mediaextractor.rc
+index 5fc2941..20f2521 100644
+--- services/mediaextractor/mediaextractor.rc
++++ services/mediaextractor/mediaextractor.rc
+@@ -1,5 +1,5 @@
+ service mediaextractor /system/bin/mediaextractor
+-    class main
++    class late_start
+     user mediaex
+     group drmrpc mediadrm
+     ioprio rt 4
+diff --git services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy
+index 165694c..00f8e8c 100644
+--- services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy
++++ services/mediaextractor/minijail/seccomp_policy/mediaextractor-seccomp-arm.policy
+@@ -45,3 +45,7 @@ socket: 1
+ connect: 1
+ fcntl64: 1
+ rt_tgsigqueueinfo: 1
++
++# add hcjun
++gettimeofday: 1
++nanosleep: 1
