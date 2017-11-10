@@ -1034,7 +1034,7 @@ index 845462b..70e2da3 100644
 +
  }  // namespace android
 diff --git media/libstagefright/MediaExtractor.cpp media/libstagefright/MediaExtractor.cpp
-index 92ce88c..17cdade 100644
+index 92ce88c..01acce5 100644
 --- media/libstagefright/MediaExtractor.cpp
 +++ media/libstagefright/MediaExtractor.cpp
 @@ -49,6 +49,10 @@
@@ -1058,7 +1058,7 @@ index 92ce88c..17cdade 100644
          if (!source->sniff(&tmp, &confidence, &meta)) {
              ALOGV("FAILED to autodetect media content.");
  
-@@ -232,6 +236,58 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
+@@ -232,6 +236,56 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
          }
      }
  
@@ -1066,7 +1066,7 @@ index 92ce88c..17cdade 100644
 +
 +#ifdef ENABLE_FFMPEG_EXTRACTOR  //Add hcjun
 +    MediaExtractor *ret = NULL;
-+#if 1 // use android default extractor for CTS
++#if 0 // use android default extractor for CTS
 +    if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MPEG4)
 +            || !strcasecmp(mime, "audio/mp4")) {
 +        ret = new MPEG4Extractor(source);
@@ -1082,7 +1082,6 @@ index 92ce88c..17cdade 100644
 +        ret = new FFmpegExtractor(source);
 +    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_AVI) ){
 +        ret = new FFmpegExtractor(source);
-+ /*       
 +    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_WMV) ){
 +        ret = new FFmpegExtractor(source);
 +    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_RM) ){
@@ -1091,7 +1090,6 @@ index 92ce88c..17cdade 100644
 +        ret = new FFmpegExtractor(source);
 +    }else if ( !strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_ASF) ){
 +        ret = new FFmpegExtractor(source);
-+  */      
 +    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AMR_NB)
 +            || !strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AMR_WB)) {
 +        ret = new AMRExtractor(source);
@@ -1117,7 +1115,7 @@ index 92ce88c..17cdade 100644
      MediaExtractor *ret = NULL;
      if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MPEG4)
              || !strcasecmp(mime, "audio/mp4")) {
-@@ -261,6 +317,7 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
+@@ -261,6 +315,7 @@ sp<MediaExtractor> MediaExtractor::CreateFromService(
      } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_MIDI)) {
          ret = new MidiExtractor(source);
      }
