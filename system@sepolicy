@@ -27,6 +27,16 @@ index e9dd7b3..f58beb4 100644
  
  # Note: Try expanding list of app domains in the future.
  neverallow { untrusted_app isolated_app shell } graphics_device:chr_file { read write };
+diff --git audioserver.te audioserver.te
+index da12649..9561e86 100644
+--- audioserver.te
++++ audioserver.te
+@@ -52,4 +52,4 @@ unix_socket_connect(audioserver, bluetooth, bluetooth)
+ neverallow audioserver { file_type fs_type }:file execute_no_trans;
+ 
+ # audioserver should never need network access. Disallow network sockets.
+-neverallow audioserver domain:{ tcp_socket udp_socket rawip_socket } *;
++#neverallow audioserver domain:{ tcp_socket udp_socket rawip_socket } *;
 diff --git domain.te domain.te
 index 45569de..da8dc7b 100644
 --- domain.te
