@@ -38,7 +38,7 @@ index da12649..9561e86 100644
 -neverallow audioserver domain:{ tcp_socket udp_socket rawip_socket } *;
 +#neverallow audioserver domain:{ tcp_socket udp_socket rawip_socket } *;
 diff --git domain.te domain.te
-index 45569de..75b0439 100644
+index 45569de..da8dc7b 100644
 --- domain.te
 +++ domain.te
 @@ -234,7 +234,7 @@ neverallow { domain -init } kernel:security setsecparam;
@@ -59,23 +59,7 @@ index 45569de..75b0439 100644
  
  # Don't allow raw read/write/open access to generic devices.
  # Rather force a relabel to a more specific type.
-@@ -280,6 +280,7 @@ neverallow {
-     userdebug_or_eng(`-su')
-     -system_server
-     -zygote
-+    -gocsdk
- } { file_type -system_file -exec_type -postinstall_file }:file execute;
- neverallow {
-     domain
-@@ -465,6 +466,7 @@ neverallow ~domain domain:process { transition dyntransition };
- #
- neverallow {
-   domain
-+  -gocsdk
-   -system_server
-   -system_app
-   -init
-@@ -578,6 +580,7 @@ neverallow {
+@@ -578,6 +578,7 @@ neverallow {
    -recovery
    -sdcardd
    -vold
@@ -83,7 +67,7 @@ index 45569de..75b0439 100644
  } fuse_device:chr_file open;
  neverallow {
    domain
-@@ -589,6 +592,7 @@ neverallow {
+@@ -589,6 +590,7 @@ neverallow {
    -system_server
    -ueventd
    -vold
