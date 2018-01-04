@@ -35,7 +35,7 @@ index 1e1a63e..d6a4e97 100644
                  case 0x0c: // W95 FAT32 (LBA)
                  case 0x0e: // W95 FAT16 (LBA)
 diff --git PublicVolume.cpp PublicVolume.cpp
-index 893f928..9cea5d0 100644
+index 893f928..a3b53ad 100644
 --- PublicVolume.cpp
 +++ PublicVolume.cpp
 @@ -15,6 +15,8 @@
@@ -56,7 +56,15 @@ index 893f928..9cea5d0 100644
      mDevPath = StringPrintf("/dev/block/vold/%s", getId().c_str());
  }
  
-@@ -94,16 +96,11 @@ status_t PublicVolume::doMount() {
+@@ -90,20 +92,19 @@ status_t PublicVolume::doDestroy() {
+     return DestroyDeviceNode(mDevPath);
+ }
+ 
++#include <cutils/properties.h>
++
++static const char *CHECKFS_PROP_KEY = "persist.vold.check_fs";
++
+ status_t PublicVolume::doMount() {
      // TODO: expand to support mounting other filesystems
      readMetadata();
  
@@ -74,31 +82,36 @@ index 893f928..9cea5d0 100644
      // Use UUID as stable name, if available
      std::string stableName = getId();
      if (!mFsUuid.empty()) {
-@@ -128,8 +125,36 @@ status_t PublicVolume::doMount() {
+@@ -128,8 +129,41 @@ status_t PublicVolume::doMount() {
          return -errno;
      }
  
 -    if (vfat::Mount(mDevPath, mRawPath, false, false, false,
 -            AID_MEDIA_RW, AID_MEDIA_RW, 0007, true)) {
-+	int ret = 0;
-+	if (mFsType == "exfat") {
-+		ret = exfat::Check(mDevPath);
-+	} else if (mFsType == "ntfs") {
-+		ret = ntfs::Check(mDevPath);
-+	} else if (mFsType == "vfat") {
-+		ret = vfat::Check(mDevPath);
-+	} else {
-+		LOG(WARNING) << getId() << " unsupported filesystem check, skipping";
-+	}
++    int ret = 0;
++    int val = property_get_bool(CHECKFS_PROP_KEY, 1);
++    if (val == 1) {
++        if (mFsType == "exfat") {
++            ret = exfat::Check(mDevPath);
++        } else if (mFsType == "ntfs") {
++            ret = ntfs::Check(mDevPath);
++        } else if (mFsType == "vfat") {
++            ret = vfat::Check(mDevPath);
++        } else {
++            LOG(WARNING) << getId() << " unsupported filesystem check, skipping";
++        }
 +
-+	if (ret) {
-+		LOG(ERROR) << getId() << " failed filesystem check";
-+		return -EIO;
-+	}
++        if (ret) {
++            LOG(ERROR) << getId() << " failed filesystem check";
++            return -EIO;
++        }
++    } else {
++        LOG(WARNING) << getId() << " persist.vold.check_fs prop is 0, skipping check fs";
++    }
 +
-+	if (mFsType == "exfat") {
-+		ret = exfat::Mount(mDevPath, mRawPath, false, false, false,
-+						   AID_MEDIA_RW, AID_MEDIA_RW, 0007);
++    if (mFsType == "exfat") {
++        ret = exfat::Mount(mDevPath, mRawPath, false, false, false,
++                           AID_MEDIA_RW, AID_MEDIA_RW, 0007);
 +    } else if (mFsType == "ntfs") {
 +        ret = ntfs::Mount(mDevPath, mRawPath, false, false, false,
 +                AID_MEDIA_RW, AID_MEDIA_RW, 0007, true);
@@ -113,7 +126,7 @@ index 893f928..9cea5d0 100644
          PLOG(ERROR) << getId() << " failed to mount " << mDevPath;
          return -EIO;
      }
-@@ -227,19 +252,37 @@ status_t PublicVolume::doUnmount() {
+@@ -227,19 +261,37 @@ status_t PublicVolume::doUnmount() {
  }
  
  status_t PublicVolume::doFormat(const std::string& fsType) {
