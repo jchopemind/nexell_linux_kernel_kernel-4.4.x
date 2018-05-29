@@ -176,3 +176,4 @@ obj-$(CONFIG_FPGA)		+= fpga/
 obj-$(CONFIG_GATOR)		+= gator/
 obj-$(CONFIG_TRUSTONIC_TEE)		+= gud/
 obj-$(CONFIG_SWITCH)		+= switch/
+obj-$(CONFIG_SND_SOC_CX2070X_I2C)	+= sds/cx2070x/

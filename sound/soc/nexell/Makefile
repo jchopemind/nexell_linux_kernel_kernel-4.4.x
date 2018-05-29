@@ -17,6 +17,8 @@ nexell-snd-feedback-objs			:= nexell-feedback.o
 
 obj-$(CONFIG_SND_CODEC_ES8316)			+= nexell-snd-es8316.o
 obj-$(CONFIG_SND_CODEC_ALC5658)			+= nexell-snd-alc5658.o
+obj-$(CONFIG_SND_CODEC_CX2070X)			+= nexell-snd-cx2070x.o
+obj-$(CONFIG_SND_CODEC_ZL38004)			+= nexell-snd-zl38004.o
 obj-$(CONFIG_SND_CODEC_NULL)			+= nexell-snd-null.o
 obj-$(CONFIG_SND_CODEC_RT5640)			+= nexell-snd-rt5640.o
 obj-$(CONFIG_SND_CODEC_ALC5623)			+= nexell-snd-alc5623.o
@@ -26,6 +28,8 @@ obj-$(CONFIG_SND_NX_SIMPLE_CARD)		+= nexell-snd-soc-simple-card.o
 
 nexell-snd-es8316-objs 				:= nexell-es8316.o
 nexell-snd-alc5658-objs 			:= nexell-alc5658.o
+nexell-snd-cx2070x-objs 			:= nexell-cx2070x.o
+nexell-snd-zl38004-objs 			:= nexell-zl38004.o
 nexell-snd-null-objs				:= nexell-null.o
 nexell-snd-rt5640-objs				:= nexell-rt5640.o
 nexell-snd-alc5623-objs 			:= nexell-alc5623.o

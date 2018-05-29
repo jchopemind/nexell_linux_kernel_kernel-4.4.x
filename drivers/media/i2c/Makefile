@@ -91,3 +91,5 @@ obj-$(CONFIG_VIDEO_S5K4ECGA)	+= s5k4ecga.o
 obj-$(CONFIG_VIDEO_NXS_EXAMPLE_SENSOR) += nxs-example-sensor.o
 obj-$(CONFIG_VIDEO_S5KRD4)	+= s5krd4.o
 obj-$(CONFIG_VIDEO_ZN240)	+= zn240.o
+obj-$(CONFIG_VIDEO_CM130PC20)	+= cm130pc20.o
+obj-$(CONFIG_VIDEO_NVP6158C)	+= nvp6158c.o nvp6158c_vga.o

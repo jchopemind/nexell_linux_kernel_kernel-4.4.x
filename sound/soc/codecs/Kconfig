@@ -429,6 +429,46 @@ config SND_SOC_CX20442
 	tristate
 	depends on TTY
 
+config SND_SOC_CX2070X
+	tristate
+	depends on I2C
+
+config SND_SOC_CX2070X_I2C
+	tristate "Conexant CX2070X CODEC - I2C"
+	depends on I2C
+	select SND_SOC_CX2070X
+	select REGMAP_I2C
+
+config SND_SOC_CX2070X_SPI
+	tristate "Conexant CX2070X CODEC - SPI"
+	depends on SPI_MASTER
+	select SND_SOC_CX2070X
+	select REGMAP_SPI
+
+config SND_SOC_CX2070X_SYSFS
+	tristate "Conexant CX2070X CODEC (SYSFS)"
+	depends on SYSFS
+	depends on SND_SOC_CX2070X
+
+config SND_SOC_CX2070X_FW_PATCH
+	tristate "Conexant CX2070X CODEC FW PATCH"
+	depends on SND_SOC_CX2070X
+
+config SND_SOC_ZL38004
+	tristate "Zalink ZL38004 CODEC"
+	
+config SND_SOC_ZL38004_I2C
+	tristate "Zalink ZL38004 CODEC - I2C"
+	depends on I2C
+	select SND_SOC_CX2070X
+	select REGMAP_I2C
+
+config SND_SOC_ZL38004_SPI
+	tristate "Zalink ZL38004 CODEC - SPI"
+	depends on SPI_MASTER
+	select SND_SOC_CX2070X
+	select REGMAP_SPI
+
 config SND_SOC_JZ4740_CODEC
 	select REGMAP_MMIO
 	tristate

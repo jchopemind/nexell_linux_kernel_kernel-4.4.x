@@ -35,6 +35,13 @@
 
 #include <video/display_timing.h>
 #include <video/videomode.h>
+#ifdef	CONFIG_LVDS_TO_EDP_EP126U
+#include "ep126.h"
+#endif
+
+// Debug
+static int debug = 1;
+#define dprintk(msg...)	if(debug)	{printk("panel-simple> " msg);}
 
 struct panel_desc {
 	const struct drm_display_mode *modes;
@@ -82,6 +89,10 @@ struct panel_simple {
 	struct i2c_adapter *ddc;
 
 	struct gpio_desc *enable_gpio;
+#ifdef CONFIG_LVDS_TO_EDP_EP126U
+	struct gpio_desc *reset_gpio;	// KJW : add for reset control
+	struct gpio_desc *blenable_gpio;	// KJW : add for backlight enable
+#endif	
 };
 
 static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
@@ -147,6 +158,7 @@ static int panel_simple_get_fixed_modes(struct panel_simple *panel)
 static int panel_simple_disable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	dprintk("%s()\n", __func__);
 
 	if (!p->enabled)
 		return 0;
@@ -155,9 +167,17 @@ static int panel_simple_disable(struct drm_panel *panel)
 		p->backlight->props.power = FB_BLANK_POWERDOWN;
 		backlight_update_status(p->backlight);
 	}
+#ifdef CONFIG_LVDS_TO_EDP_EP126U
+	if (p->blenable_gpio)
+		gpiod_set_value_cansleep(p->blenable_gpio, 0);
+#endif	
 
 	if (p->desc->delay.disable)
 		msleep(p->desc->delay.disable);
+
+#ifdef CONFIG_LVDS_TO_EDP_EP126U
+	DP_Tx_Power_Down(p->ddc);	
+#endif	
 
 	p->enabled = false;
 
@@ -167,13 +187,17 @@ static int panel_simple_disable(struct drm_panel *panel)
 static int panel_simple_unprepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	dprintk("%s()\n", __func__);
 
 	if (!p->prepared)
 		return 0;
 
 	if (p->enable_gpio)
+#ifdef CONFIG_LVDS_TO_EDP_EP126U
 		gpiod_set_value_cansleep(p->enable_gpio, 0);
-
+#else
+		gpiod_set_value_cansleep(p->enable_gpio, 0);
+#endif	
 	regulator_disable(p->supply);
 
 	if (p->desc->delay.unprepare)
@@ -188,6 +212,7 @@ static int panel_simple_prepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
 	int err;
+	dprintk("%s()\n", __func__);
 
 	if (p->prepared)
 		return 0;
@@ -200,10 +225,14 @@ static int panel_simple_prepare(struct drm_panel *panel)
 
 	if (p->enable_gpio)
 		gpiod_set_value_cansleep(p->enable_gpio, 1);
-
+	
 	if (p->desc->delay.prepare)
 		msleep(p->desc->delay.prepare);
-
+/*
+#ifdef CONFIG_LVDS_TO_EDP_EP126U
+	init_ep126(p->ddc);
+#endif
+*/
 	p->prepared = true;
 
 	return 0;
@@ -212,12 +241,22 @@ static int panel_simple_prepare(struct drm_panel *panel)
 static int panel_simple_enable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
+	dprintk("%s()\n", __func__);
 
 	if (p->enabled)
 		return 0;
 
+#ifdef CONFIG_LVDS_TO_EDP_EP126U
+	EP146Control_IRQ_Event(p->ddc);
+#endif	
+
 	if (p->desc->delay.enable)
 		msleep(p->desc->delay.enable);
+
+#ifdef CONFIG_LVDS_TO_EDP_EP126U
+	if (p->blenable_gpio)
+		gpiod_set_value_cansleep(p->blenable_gpio, 1);
+#endif	
 
 	if (p->backlight) {
 		p->backlight->props.power = FB_BLANK_UNBLANK;
@@ -233,6 +272,7 @@ static int panel_simple_get_modes(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
 	int num = 0;
+	dprintk("%s()\n", __func__);
 
 	/* probe EDID if a DDC bus is available */
 	if (p->ddc) {
@@ -256,6 +296,7 @@ static int panel_simple_get_timings(struct drm_panel *panel,
 {
 	struct panel_simple *p = to_panel_simple(panel);
 	unsigned int i;
+	dprintk("%s()\n", __func__);
 
 	if (p->desc->num_timings < num_timings)
 		num_timings = p->desc->num_timings;
@@ -281,6 +322,10 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	struct device_node *backlight, *ddc;
 	struct panel_simple *panel;
 	int err;
+#ifdef CONFIG_LVDS_TO_EDP_EP126U	
+	int gpio, ret;	// YH : interrupt gpio
+#endif
+	dprintk("%s()\n", __func__);
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
@@ -294,13 +339,32 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	if (IS_ERR(panel->supply))
 		return PTR_ERR(panel->supply);
 
+#ifdef CONFIG_LVDS_TO_EDP_EP126U	
 	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						     GPIOD_OUT_LOW);
+#else
+	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable",
+						     GPIOD_OUT_LOW);
+#endif							 
 	if (IS_ERR(panel->enable_gpio)) {
 		err = PTR_ERR(panel->enable_gpio);
 		dev_err(dev, "failed to request GPIO: %d\n", err);
 		return err;
 	}
+	else
+  	dprintk("%s(): found enable GPIO\n", __func__);
+
+#ifdef CONFIG_LVDS_TO_EDP_EP126U	
+	panel->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(panel->reset_gpio)) {
+		err = PTR_ERR(panel->reset_gpio);
+		dev_err(dev, "failed to request GPIO: %d\n", err);
+		return err;
+	}
+	else
+  	dprintk("%s(): found reset GPIO\n", __func__);
+#endif	
 
 	backlight = of_parse_phandle(dev->of_node, "backlight", 0);
 	if (backlight) {
@@ -310,7 +374,19 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		if (!panel->backlight)
 			return -EPROBE_DEFER;
 	}
-
+	
+	// KJW : add for get bl-gpio
+#ifdef CONFIG_LVDS_TO_EDP_EP126U	
+	panel->blenable_gpio = devm_gpiod_get_optional(dev, "backlight",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(panel->blenable_gpio)) {
+		err = PTR_ERR(panel->blenable_gpio);
+		dev_err(dev, "failed to request GPIO: %d\n", err);
+		return err;
+	}
+	else
+  	dprintk("%s(): found backlight GPIO\n", __func__);
+#endif
 	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
 	if (ddc) {
 		panel->ddc = of_find_i2c_adapter_by_node(ddc);
@@ -322,6 +398,46 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		}
 	}
 
+#ifdef CONFIG_LVDS_TO_EDP_EP126U	
+	if (panel->reset_gpio)
+	{
+		dev_err(dev, "ep126 reset!\n");	// KJW
+		gpiod_set_value_cansleep(panel->reset_gpio, 1);
+		msleep(20);
+		init_ep126(panel->ddc);
+	}
+	/*
+	gpio = of_get_named_gpio(dev->of_node, "int-gpio", 0);
+	if (!gpio_is_valid(gpio))
+		return -ENODEV;
+	dev_err(dev, "get int-gpio: %d\n", gpio);
+	ret = gpio_request(gpio, "ep126_irq");
+	if (ret < 0) {
+		dev_err(dev,
+			"request gpio failed, cannot wake up controller: %d\n",
+			ret);
+		return ret;
+	}
+
+	// wake up controller via an falling edge on IRQ gpio.
+	gpio_direction_output(gpio, 0);
+	gpio_set_value(gpio, 1);
+
+	// controller should be waken up, return irq.
+	
+	gpio_direction_input(gpio);
+	
+	err = devm_request_threaded_irq(dev, gpio_to_irq(gpio), NULL,
+					  ep126_dp_interrupt,
+					  IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					  "panel-simple", panel);
+	if (err < 0) {
+		dev_err(dev, "Failed to register interrupt\n");
+		return err;
+	}
+	gpio_free(gpio);
+	*/
+#endif
 	drm_panel_init(&panel->base);
 	panel->base.dev = dev;
 	panel->base.funcs = &panel_simple_funcs;
@@ -347,6 +463,7 @@ free_backlight:
 static int panel_simple_remove(struct device *dev)
 {
 	struct panel_simple *panel = dev_get_drvdata(dev);
+	dprintk("%s()\n", __func__);
 
 	drm_panel_detach(&panel->base);
 	drm_panel_remove(&panel->base);
@@ -365,6 +482,7 @@ static int panel_simple_remove(struct device *dev)
 static void panel_simple_shutdown(struct device *dev)
 {
 	struct panel_simple *panel = dev_get_drvdata(dev);
+	dprintk("%s()\n", __func__);
 
 	panel_simple_disable(&panel->base);
 }
@@ -416,7 +534,35 @@ static const struct panel_desc auo_b101aw03 = {
 		.height = 125,
 	},
 };
+#ifdef CONFIG_LVDS_TO_EDP_EP126U
+static const struct drm_display_mode auo_b125xtn03_mode = {
+	.clock = 75500,
+	.hdisplay = 1366,
+	.hsync_start = 1366 + 100,
+	.hsync_end = 1366 + 100 + 26,
+	.htotal = 1366 + 100 + 26 + 100,
+	.vdisplay = 768,
+	.vsync_start = 768 + 10,
+	.vsync_end = 768 + 10 + 2,
+	.vtotal = 768 + 10 + 2 + 10,
+	.vrefresh = 60,
+};
 
+static const struct panel_desc auo_b125xtn03 = {
+	.modes = &auo_b125xtn03_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 276,
+		.height = 155,
+	},
+	.delay = {
+		.prepare = 210,
+		.enable = 50,
+		.unprepare = 510,
+	},
+};
+#endif
 static const struct drm_display_mode auo_b101ean01_mode = {
 	.clock = 72500,
 	.hdisplay = 1280,
@@ -1135,6 +1281,11 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "auo,b116xw03",
 		.data = &auo_b116xw03,
 	}, {
+#ifdef CONFIG_LVDS_TO_EDP_EP126U		
+		.compatible = "auo,b125xtn03",
+		.data = &auo_b125xtn03,
+	}, {
+#endif		
 		.compatible = "auo,b133htn01",
 		.data = &auo_b133htn01,
 	}, {
@@ -1226,12 +1377,19 @@ static int panel_simple_platform_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
 
+	dprintk("%s()\n", __func__);
+
 	id = of_match_node(platform_of_match, pdev->dev.of_node);
 	if (!id)
 		return -ENODEV;
 
+#ifdef CONFIG_LVDS_TO_EDP_EP126U		
+	if (of_device_is_compatible(pdev->dev.of_node, "auo,b125xtn03")) {
+		if (!drm_panel_connected("b125xtn03"))
+#else			
 	if (of_device_is_compatible(pdev->dev.of_node, "dongguan,gst7d0038")) {
 		if (!drm_panel_connected("gst7d0038"))
+#endif			
 			return -ENODEV;
 	}
 

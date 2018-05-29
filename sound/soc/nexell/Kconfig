@@ -78,6 +78,16 @@ config SND_CODEC_ALC5658
 	depends on SND_NX_I2S
 	select SND_SOC_RT5659
 
+config SND_CODEC_CX2070X
+	tristate "CX2070X I2S audio codec."
+	depends on SND_NX_I2S
+	select SND_SOC_CX2070X
+
+config SND_CODEC_ZL38004
+	tristate "ZL38004 I2S audio codec."
+	depends on SND_NX_I2S
+	select SND_SOC_ZL38004
+
 config SND_CODEC_RT5640
 	tristate "RT5640 I2S audio codec."
 	depends on SND_NX_I2S

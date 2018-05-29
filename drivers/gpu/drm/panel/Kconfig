@@ -75,4 +75,9 @@ config DRM_PANEL_PX0701C
 	select DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
 
+config LVDS_TO_EDP_EP126U
+	tristate "LVDS to edp panel converter EP126"
+	depends on OF
+	select VIDEOMODE_HELPERS
+
 endmenu

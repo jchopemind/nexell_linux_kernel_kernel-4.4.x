@@ -66,3 +66,4 @@ obj-$(CONFIG_FCI_FC8300)	+= fci/
 obj-$(CONFIG_SERDES_DS90_UB927928)	+= ub927928.o
 obj-$(CONFIG_USB_CHARGE)	+= usb_charge/
 obj-$(CONFIG_KP_IRRC)		+= kp_uei_irrc.o
+obj-$(CONFIG_SDS_MISC)		+= sds_misc.o

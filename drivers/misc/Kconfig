@@ -590,6 +590,12 @@ config KP_IRRC
 	default n
 	help
 	  If you say yes here you get support for IrRC
+	  
+config SDS_MISC
+	bool "Support SDS_MISC"
+	default y
+	help
+	  If you say yes here you get support for SDS MISC Control
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

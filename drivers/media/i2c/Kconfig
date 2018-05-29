@@ -645,6 +645,13 @@ config VIDEO_NVP6114A
 	  This is a Video4Linux2 sensor-level driver for Nextchip
 	  NVP6114A AHD sensor.
 
+config VIDEO_NVP6158C
+	tristate "Nextchip NVP6158C sensor support(nexell work)"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for Nextchip
+	  NVP6158C AHD sensor.
+
 source "drivers/media/i2c/maxim/Kconfig"
 config VIDEO_SR030PC30
 	tristate "Siliconfile SR030PC30 sensor support"
@@ -715,6 +722,14 @@ config VIDEO_ZN240
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	---help---
 	  This is a V4L2 sensor-level driver for ZN240 1080p
+	  CMOS Image Sensor with an embedded SoC image signal
+	  processor.
+
+config VIDEO_CM130PC20
+	tristate "SK hynix CM130PC20 1.3mega sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a V4L2 sensor-level driver for CM130 720p
 	  CMOS Image Sensor with an embedded SoC image signal
 	  processor.
 
