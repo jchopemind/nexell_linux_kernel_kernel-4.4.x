@@ -24,7 +24,7 @@
 
 #define SENSOR_NAME "NVP6158C_VGA"
 #define CONFIG_CVBS
-#define INPUT_FORMAT	AHD20_SD_H960_PAL	// AHD20_SD_H960_NT, AHD20_SD_H960_PAL
+#define INPUT_FORMAT	AHD20_SD_H960_NT	// AHD20_SD_H960_NT, AHD20_SD_H960_PAL
 // Debug
 static int debug = 1;
 #define dprintk(msg...)	if(debug)	{printk("nvp6158c_vga> " msg);}
@@ -211,7 +211,17 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 	WARN_ON(!subdev);
 	
 	dprintk("%s()\n", __func__);
-	dev_info(&client->dev, "%s start\n", __func__);
+	dev_info(&client->dev, "%s start(%d)\n", __func__, val);
+	
+	if(val == 0)	// stream off
+	{
+		dprintk("Door camera off\n");
+		gpio_i2c_write(client, 0xFF, 0x01);
+		gpio_i2c_read(client, 0xCA, &r_data);
+		r_data &= 0x99;
+		gpio_i2c_write(client, 0xCA, r_data);
+		return ret;
+	}
 	
 	if (host->i2c_addr)
 		client->addr = host->i2c_addr;
@@ -334,6 +344,8 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 		else
 			raptor3_output_set(client, i, 2);	//vin2 -- vdo1->vdo2
 	}
+	msleep(200);	// YH : wait for stable mode
+	
 /*	
 #ifdef	CONFIG_CVBS	
 	//CVBS TEST
@@ -1690,6 +1702,13 @@ static int sensor_nvp6158c_s_stream(struct v4l2_subdev *subdev,
 
 	if (enable) {
 		ret = sensor_nvp6158c_init(subdev, 1);
+		if (ret) {
+			dev_err(&client->dev, "stream_on is fail(%d)", ret);
+			goto p_err;
+		}
+	}
+	else {
+		ret = sensor_nvp6158c_init(subdev, 0);
 		if (ret) {
 			dev_err(&client->dev, "stream_on is fail(%d)", ret);
 			goto p_err;
