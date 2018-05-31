@@ -9,12 +9,7 @@
  */
 #include <linux/fs.h>       /* file system operations */
 #include <linux/slab.h>     /* memort allocation functions */
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)
-#include <linux/uaccess.h>
-#else
-#include <asm/uaccess.h>
-#endif
+#include <asm/uaccess.h>    /* user space access */
 
 #include "mali_ukk.h"
 #include "mali_osk.h"

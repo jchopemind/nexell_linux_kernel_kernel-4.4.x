@@ -435,6 +435,4 @@ void mali_soft_job_system_abort(struct mali_soft_job_system *system)
 
 		mali_soft_job_destroy(job);
 	}
-
-	mali_executor_schedule_from_mask(MALI_SCHEDULER_MASK_ALL, MALI_FALSE);
 }

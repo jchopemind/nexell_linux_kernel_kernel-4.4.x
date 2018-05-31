@@ -8,13 +8,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include <linux/fs.h>       /* file system operations */
-#include <linux/version.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)
-#include <linux/uaccess.h>
-#else
-#include <asm/uaccess.h>
-#endif
+#include <asm/uaccess.h>    /* user space access */
 #include <linux/slab.h>
 
 #include "mali_ukk.h"
