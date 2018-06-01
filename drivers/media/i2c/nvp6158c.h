@@ -9237,7 +9237,7 @@ static video_equalizer_value_table_s equalizer_value_fmtdef[ NC_VIVO_CH_FORMATDE
 	/*B9 0x9e*/	.h_scaler9[0]  = 0x00,
 
 
-	/*B9 0x40*/	.pn_auto[0]    	= 0x60,
+	/*B9 0x40*/	.pn_auto[0]    	= 0x00,		// YH : 0x06 -> 0x00 Color가 늦게 보이는 현상 수정
 
 	/*B5 0x90*/	.comb_mode[0]      = 0x01,
 	/*B9 0xb9*/	.h_pll_op_a[0]     = 0x72,

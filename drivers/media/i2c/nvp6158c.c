@@ -281,8 +281,23 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 		}
 	}
 	
-	if(host->i2c_addr)		// YH: FR ir인 경우 init skip
+	
+	if (host->i2c_addr)
+	{
+		client->addr = host->i2c_addr;
+	
+		gpio_i2c_write(client, 0xFF, 0x01);
+		gpio_i2c_read(client, 0xCA, &r_data);
+		dprintk("reg(0xca) = 0x%02x\n", r_data);
+	
+		if((r_data&0x44) == 0x00)		// YH: FR ir output이 off인지 체크
+		{
+			r_data |= 0x44;
+			gpio_i2c_write(client, 0xCA, r_data);
+			//raptor3_output_set(client, 1, 2);
+		}			
 		return ret;
+	}
 
 	/*
 	if(client->addr == 0x33)	return ret;	// YH: FR ir인 경우 init skip
@@ -351,6 +366,7 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 
 	/* all port enable */
 	gpio_i2c_write(client, 0xca, 0x66);
+	//gpio_i2c_write(client, 0xca, 0x22);		// YH: vdo1만 enable
 
 	/* mux chid set */
 	gpio_i2c_write(client, 0xff, 0x00);
@@ -411,6 +427,7 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 		else
 			raptor3_output_set(client, i, 2);	//vin2 -- vdo1->vdo2 (IR)
 	}
+	msleep(100);
 	
 #ifdef	CONFIG_CVBS	
 	//CVBS TEST
@@ -1855,7 +1872,14 @@ static int sensor_nvp6158c_enum_fsize(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_frame_size_enum *frame)
 {
+	//YH : IR/Color Sensor 구분
+	struct i2c_client *client = to_client(sd); 
+	struct nvp6158c_state *state = to_state(sd);
+	struct i2c_info *host = v4l2_get_subdev_hostdata(sd);
+
 	dprintk("%s()\n", __func__);
+	//YH : 
+	
 	if (frame->index >= ARRAY_SIZE(supported_resolutions))
 		return -ENODEV;
 
@@ -1889,6 +1913,7 @@ static int sensor_nvp6158c_enum_finterval(struct v4l2_subdev *sd,
 		}
 	}
 	*/
+	/*
 	for (i = 0; i < ARRAY_SIZE(supported_resolutions); i++) {
 		if ((frame->width == supported_resolutions[i].width) &&
 		    (frame->height == supported_resolutions[i].height)) {
@@ -1898,7 +1923,12 @@ static int sensor_nvp6158c_enum_finterval(struct v4l2_subdev *sd,
 			return false;
 		}
 	}
-	return -EINVAL;
+	*/
+	// YH : 해상도 고정
+	frame->interval.numerator = 1;
+	frame->interval.denominator = 30;
+	return false;
+	//return -EINVAL;
 }
 
 static int sensor_nvp6158c_s_param(struct v4l2_subdev *sd,
