@@ -256,208 +256,20 @@
 			status = "okay";
 		};
 
-		/*
-		i2c_0:i2c@c00a4000 {
-			samsung,i2c-max-bus-freq = <400000>;
-			status = "okay";
-		};
-		*/
-		/*
-		mipi_csi:mipi_csi@c00d0000 {
-			data_lane = <2>;
-			pllval = <750>;
-			hssettle = <7 7 7 7>;
-			status = "okay";
-		};
-		*/
-		/*
-		clipper_0:clipper0@c0063000 {
-			logical = <0>;
-			interface_type = <NX_CAPTURE_INTERFACE_MIPI_CSI>;
-			clock_source = <2>;
-			clock_frequency = <300000000>;
-			gpios = <&gpio_a 17 0 &gpio_a 3 0 &gpio_a 6 0>;
-			data_order = <NX_VIN_Y0CBY1CR>;
-			status = "okay";
-
-			sensor {
-				type = <NX_CAPTURE_SENSOR_I2C>;
-				i2c_name = "S5K4ECGA";
-				i2c_adapter = <0>;
-				addr = <0x56>;
-			};
-			power {
-				enable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 1 2 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 1 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 1 NX_ACTION_END
-				>;
-
-				disable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 0 1 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 0 1 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 0 2 NX_ACTION_END
-				>;
-			};
-		};
-
-		clipper_3:clipper3@c0063000 {
-			compatible = "nexell,nx-clipper";
-			module = <0>;
-			logical = <1>;
-			logical_num = <0>;
-			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>;
-			clock_source = <4>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&vid0_data_clk &vid0_sync> ;
-			port = <0>;
-			external_sync = <0>;
-			data_order = <NX_VIN_CBY0CRY1>;
-			interlace = <0>;
-			gpios = <&gpio_b 27 1 &gpio_b 23 1>;
-			status = "okay";
-
-			sensor {
-				type = <NX_CAPTURE_SENSOR_I2C>;
-				i2c_name = "ZN240";
-				i2c_adapter = <12>;
-				addr = <0x6C>;
-			};
-
-			power {
-				enable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 1 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 1 NX_ACTION_END
-				>;
-			};
-		};
-
-		clipper_1:clipper1@c0064000 {
-			compatible = "nexell,nx-clipper";
-			module = <1>;
-			logical = <0>;
-			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&vid2_data_clk &vid2_sync> ;
-			port = <1>;
-			external_sync = <0>;
-			data_order = <NX_VIN_CBY0CRY1>;
-			interlace = <0>;
-			gpios = <&gpio_b 12 1 &gpio_b 22 1>;
-			status = "okay";
-
-			sensor {
-				type = <NX_CAPTURE_SENSOR_I2C>;
-				i2c_name = "ZN240";
-				i2c_adapter = <13>;
-				addr = <0x6C>;
-			};
-
-			power {
-				enable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 1 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 1 NX_ACTION_END
-				>;
-			};
-		};
-
-		clipper_4:clipper4@c0064000 {
-			compatible = "nexell,nx-clipper";
-			module = <1>;
-			logical = <1>;
-			logical_num = <0>;
-			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>;
-			port = <1>;
-			external_sync = <0>;
-			data_order = <NX_VIN_CBY0CRY1>;
-			interlace = <0>;
-			gpios = <&gpio_b 12 1 &gpio_b 22 1>;
-			status = "okay";
-
-			sensor {
-				type = <NX_CAPTURE_SENSOR_I2C>;
-				i2c_name = "ZN240";
-				i2c_adapter = <13>;
-				addr = <0x6D>;
-				real_addr = <0x6C>;
-			};
-
-			power {
-				enable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 1 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 1 NX_ACTION_END
-				>;
-			};
-		};
-
-		clipper_5:clipper5@c0064000 {
-			compatible = "nexell,nx-clipper";
-			module = <1>;
-			logical = <1>;
-			logical_num = <1>;
-			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>;
-			port = <1>;
-			external_sync = <0>;
-			data_order = <NX_VIN_CBY0CRY1>;
-			interlace = <0>;
-			gpios = <&gpio_b 12 1 &gpio_b 22 1>;
-			status = "okay";
-
-			sensor {
-				type = <NX_CAPTURE_SENSOR_I2C>;
-				i2c_name = "ZN240";
-				i2c_adapter = <13>;
-				addr = <0x6E>;
-				real_addr = <0x6C>;
-			};
-
-			power {
-				enable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 1 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 1 NX_ACTION_END
-				>;
-			};
-		};
-
-		decimator_3:decimator3@c0063000 {
-			compatible = "nexell,nx-decimator";
-			module = <0>;
-			logical = <1>;
-			logical_num = <0>;
-			status = "okay";
-		};
-
-		decimator_4:decimator4@c0063000 {
-			compatible = "nexell,nx-decimator";
-			module = <1>;
-			logical = <1>;
-			logical_num = <0>;
-			status = "okay";
-		};
-
-		decimator_5:decimator5@c0063000 {
-			compatible = "nexell,nx-decimator";
-			module = <1>;
-			logical = <1>;
-			logical_num = <1>;
-			status = "okay";
-		};
-		*/
 		/* YH : internal CAM */
 		clipper_0:clipper0@c0063000 {
 			logical = <0>;
-			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>; /*NX_CAPTURE_INTERFACE_MIPI_CSI*/
+			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>;
 			clock_source = <4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&vid0_data_clk &vid0_sync>;
 			gpios = <&gpio_a 10 1 &gpio_e 13 1 &gpio_e 12 1>; /*cam_en & cam_rst & door_en*/
-			data_order = <NX_VIN_CBY0CRY1>; /*NX_VIN_Y0CBY1CR -> NX_VIN_CBY0CRY1 ->NX_VIN_Y1CRY0CB -> NX_VIN_CRY1CBY0*/
+			data_order = <NX_VIN_CBY0CRY1>;
 			port = <0>;
-			/*external_sync = <0>;*/
-			external_sync = <1>;
-			padclk_sel = <0>; 		//Pclk invert 0 -> 1
-            h_syncpolarity = <1>;	//High active
-            v_syncpolarity = <0>;	//Low active
+			external_sync = <1>; /* 601 */
+			padclk_sel = <0>;
+			h_syncpolarity = <1>; /* HSYNC active high */
+			v_syncpolarity = <0>; /* VSYNC active low */
 			h_frontporch = <0>;
 			h_syncwidth = <0>;
 			h_backporch = <0>;
@@ -492,18 +304,15 @@
 		clipper_3:clipper3@c0063000 {
 			compatible = "nexell,nx-clipper";
 			module = <0>;
-			logical = <1>;	// clipper0과 동시 사용시 0 -> 1
+			logical = <1>;	/* using with clipper0 */
 			logical_num = <0>;
 			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>;
 			clock_source = <4>;
-			/*pinctrl-names = "default";
-			pinctrl-0 = <&vid0_data_clk &vid0_sync>;*/
-			/*gpios = <&gpio_a 16 1 &gpio_a 10 1 &gpio_e 12 1>;*/		/* reset & cam_en & door_en*/
-			gpios = <&gpio_a 10 1 &gpio_e 12 1>;		/*cam_en & door_en*/
-			data_order = <NX_VIN_CBY0CRY1>; /*NX_VIN_Y0CBY1CR -> NX_VIN_CBY0CRY1*/
+			gpios = <&gpio_a 10 1 &gpio_e 12 1>; /* cam_en & door_en */
+			data_order = <NX_VIN_CBY0CRY1>;
 			port = <0>;
 			external_sync = <0>;
-			interlace = <0>;	/*cvbs -> 1*/
+			interlace = <0>; /* cvbs -> 1 */
 			status = "okay";
 
 			sensor {
@@ -511,55 +320,43 @@
 				i2c_name = "NVP6158C";
 				i2c_adapter = <11>;
 				addr = <0x33>;
-				real_addr = <0x32>;	/*0x64>>1*/
+				real_addr = <0x32>; /* 0x64>>1 */
 			};
+
 			power {
-				/* control only buffer */
 				enable_seq = <
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 0 10 NX_ACTION_END
 				>;
+				/* 
 				disable_seq = <
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
-				>;
-				/*
-				enable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 0 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 0 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
-				>;
-				disable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 1 10 NX_ACTION_END
 				>;
 				*/
 			};
 		};
+
 		/* FR Color cam */
 		clipper_1:clipper1@c0064000 {
 			compatible = "nexell,nx-clipper";
 			module = <1>;
 			logical = <0>;
-			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>; /*NX_CAPTURE_INTERFACE_MIPI_CSI*/
-			/*clock_source = <5>;*/
+			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&vid2_data_clk &vid2_sync>;
-			/*gpios = <&gpio_a 16 1 &gpio_a 10 1 &gpio_e 12 1>;*/		/* reset & cam_en & door_en*/
-			gpios = <&gpio_a 16 1>;		/* reset */
-			data_order = <NX_VIN_CBY0CRY1>; /*NX_VIN_Y0CBY1CR -> NX_VIN_CBY0CRY1*/
+			gpios = <&gpio_a 16 1>;	/* reset */
+			data_order = <NX_VIN_CBY0CRY1>;
 			port = <1>;
 			external_sync = <0>;
-			interlace = <0>;	/*cvbs -> 1*/
+			interlace = <0>; /* cvbs -> 1 */
 			status = "okay";
 
 			sensor {
 				type = <NX_CAPTURE_SENSOR_I2C>;
 				i2c_name = "NVP6158C";
 				i2c_adapter = <11>;
-				addr = <0x32>;	/*0x64>>1*/
+				addr = <0x32>; /* 0x64>>1 */
 			};
 			power {
 				/* control reset */
@@ -567,21 +364,6 @@
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 0 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
 				>;
-				/*
-				enable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 0 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 0 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
-				>;
-				
-				disable_seq = <
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
-					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 1 10 NX_ACTION_END
-				>;
-				*/
-				
 			};
 		};
 		clipper_4:clipper4@c0064000 {
@@ -589,21 +371,20 @@
 			module = <1>;
 			logical = <1>;
 			logical_num = <0>;
-			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>; /*NX_CAPTURE_INTERFACE_MIPI_CSI*/
-			/*clock_source = <5>;*/
-			gpios = <&gpio_a 16 1 &gpio_a 10 1 &gpio_e 12 1>;		/* reset & cam_en & door_en*/
-			data_order = <NX_VIN_CBY0CRY1>; /*NX_VIN_Y0CBY1CR -> NX_VIN_CBY0CRY1*/
+			interface_type = <NX_CAPTURE_INTERFACE_PARALLEL>;
+			gpios = <&gpio_a 16 1 &gpio_a 10 1 &gpio_e 12 1>; /* reset & cam_en & door_en*/
+			data_order = <NX_VIN_CBY0CRY1>;
 			port = <1>;
 			external_sync = <0>;
-			interlace = <1>;	/*cvbs -> 1*/
+			interlace = <1>; /* cvbs -> 1 */
 			status = "okay";
 
 			sensor {
 				type = <NX_CAPTURE_SENSOR_I2C>;
 				i2c_name = "NVP6158C_VGA";
 				i2c_adapter = <11>;
-				addr = <0x30>;	/*0x30:cvbs*/
-				real_addr = <0x32>;	/*0x64>>1*/
+				addr = <0x30>;	/* 0x30:cvbs */
+				real_addr = <0x32>; /* 0x64>>1 */
 			};
 			power {
 				enable_seq = <
@@ -612,11 +393,13 @@
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 0 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
 				>;
+				/*
 				disable_seq = <
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 1 10 NX_ACTION_END
 				>;
+				*/
 			};
 		};
 		decimator_3:decimator3@c0063000 {
