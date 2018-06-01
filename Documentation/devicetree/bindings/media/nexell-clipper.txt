@@ -21,6 +21,9 @@ Required properties:
 - pinctrl-0	: the pinctrl reference to vid
 - port		: vip input port, each vip has two input port and can use only one
 - external_sync	: if 1, this is 601, else 656
+- padclk_sel	: VIP Input Clock Invert. 1 = Invert
+- h_syncpolarity	: if 1, High Active else Low Active
+- v_syncpolarity	: if 1, High Active else Low Active
 - data_order	: YUV 422 data order from camera sensor
 - interlace	: if 1, interlace input data
 - sensor: type	: must contain NX_CAPTURE_SENSOR_I2C
