@@ -11,6 +11,8 @@ Required properties:
 - logical	: whether logical device or not (1 - logical, 0 or none - pysical)
 		  logical device is not a real camera device
 		  It's just for making a logical video device to use the clipper with another sensor.
+- logical_num   : the number of the logical device
+		  This value is only valid when logical is TRUE
 - interface_type	: NX_CAPTURE_INTERFACE_PARALLEL or NX_CAPTURE_INTERFACE_MIPI
 			  parallel interface is 8bit(656/601)
 - clock_source	: vip clock source number
