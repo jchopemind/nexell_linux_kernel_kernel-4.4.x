@@ -81,6 +81,14 @@
 			      clk-input = <I_PLL2>;
 			};
 			vip1:vip@c00c2000 { src-force = <5>; };
+
+			i2s0:i2s@c00b2000 {
+				clk-input = <I_PLL2>;
+			};
+			i2s1:i2s@c00b3000 {
+				clk-input = <I_PLL2>;
+			};
+
 		};
 
 		rtc@c0010c00 {
@@ -232,6 +240,7 @@
 			frame-bit = <32>;
 			sample-rate = <16000>;
 			pre-supply-mclk = <1>;
+			dfs;
 			status = "okay";
 		};
 		
@@ -529,7 +538,7 @@
 	
 	/* sound { */
 	sound0: sound@0 {
-		compatible = "simple-audio-card";
+		compatible = "nexell,simple-audio-card";
 		simple-audio-card,name = "Artik711 raptor Audio0";
 		status = "okay";
 		
@@ -546,7 +555,7 @@
 	};
 	
 	sound1: sound@1 {
-		compatible = "simple-audio-card";
+		compatible = "nexell,simple-audio-card";
 		simple-audio-card,name = "Artik711 raptor Audio1";
 		status = "okay";
 		
