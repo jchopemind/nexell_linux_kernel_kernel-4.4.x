@@ -474,12 +474,12 @@
 		compatible = "auo,b125xtn03";
 		ddc-i2c-bus = <&i2c_gpio5>;
 
-		enable-gpios = <&gpio_a 19 0>;
-		reset-gpios = <&gpio_a 3 0>;
-		interrupt-parent = <&gpio_c>;
-		interrupts = <27 IRQ_TYPE_EDGE_RISING>;
-		int-gpio = <&gpio_c 27 0>;
-		backlight-gpios = <&gpio_b 8 0>;
+		/* enable-gpios = <&gpio_a 19 0>; */
+		/* reset-gpios = <&gpio_a 3 0>; */
+		/* interrupt-parent = <&gpio_c>; */
+		/* interrupts = <27 IRQ_TYPE_EDGE_RISING>; */
+		/* int-gpio = <&gpio_c 27 0>; */
+		/* backlight-gpios = <&gpio_b 8 0>; */
 		
 		backlight = <&backlight>;
 		status = "okay";
