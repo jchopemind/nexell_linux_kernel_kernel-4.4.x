@@ -542,7 +542,7 @@ void AUX_Read_Information(struct i2c_adapter *adap, uint8_t tRate, uint8_t tLane
 	//DBG_printf(("DP Read Information\n"));
 	dprintk("DP Read Information\n");
 	
-	//Downstream_Rx_read_EDID(adap, Temp_Byte);	// YH : ?쇰떒 留됱쓬
+	//Downstream_Rx_read_EDID(adap, Temp_Byte);	// YH : ??�떒 留됱??
 
 	/////////////////////////////////////////////////////////
 	//
@@ -1017,9 +1017,9 @@ bool AUX_DP_Adjust_Swing_PreEmph(struct i2c_adapter *adap)
 	
 	// Check Max Swing reached
 	if((Swing_PreEmph[0] & 0x03) >= 3) Swing_PreEmph[0] |= 0x04;
-	if((Swing_PreEmph[1] & 0x03) >= 3) Swing_PreEmph[0] |= 0x04;
-	if((Swing_PreEmph[2] & 0x03) >= 3) Swing_PreEmph[0] |= 0x04;
-	if((Swing_PreEmph[3] & 0x03) >= 3) Swing_PreEmph[0] |= 0x04;
+	if((Swing_PreEmph[1] & 0x03) >= 3) Swing_PreEmph[1] |= 0x04;
+	if((Swing_PreEmph[2] & 0x03) >= 3) Swing_PreEmph[2] |= 0x04;
+	if((Swing_PreEmph[3] & 0x03) >= 3) Swing_PreEmph[3] |= 0x04;
 	// Check Max PreEmph reached
 	if(((Swing_PreEmph[0] >> 3) & 0x03) >= 2) Swing_PreEmph[0] |= 0x20;
 	if(((Swing_PreEmph[1] >> 3) & 0x03) >= 2) Swing_PreEmph[1] |= 0x20;
@@ -1050,7 +1050,7 @@ bool EP146Control_Link_Task(struct i2c_adapter *adap)
 		
 	AUX_State = AUX_LINK_STATE__Clock_Recovery;
 	
-	///*	// YH : ?쇰떒 留됱쓬
+	///*	// YH : ??�떒 留됱??
 	for(i=0; i<2; ++i) {
 		if(AUX_Clock_Recovery_Start(adap)) {
 			// CR Success
