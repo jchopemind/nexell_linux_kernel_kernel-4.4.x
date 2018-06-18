@@ -25,7 +25,7 @@
 //#define CONFIG_VGA_VIDEO_TYPE_OF_CM130PC20
 //#define CONFIG_TYPE_OF_656
 // Debug
-static int debug = 1;
+static int debug = 0;
 #define dprintk(msg...)	if(debug)	{printk("cm130pc20> " msg);}
 
 enum {
@@ -3263,8 +3263,8 @@ static int sensor_cm130_init(struct v4l2_subdev *subdev, u32 val)
 
 	WARN_ON(!subdev);
 
-	dprintk("%s()\n", __func__);
-	dev_info(&client->dev, "%s start\n", __func__);
+	dprintk("%s(): start\n", __func__);
+	//dev_info(&client->dev, "%s start\n", __func__);
 
 	ret = write_regs_cm130pc20(client, sensor_initialize_cm130pc20);
 	//I2C 확인 용
@@ -3313,8 +3313,8 @@ static int sensor_cm130_s_stream(struct v4l2_subdev *subdev,
 	int ret = 0;
 	struct i2c_client *client = to_client(subdev);
 
-	dev_info(&client->dev, "%s %d\n", __func__, enable);
-	dprintk("%s()\n", __func__);
+	dprintk("%s(): enable(%d)\n", __func__, enable);
+	//dev_info(&client->dev, "%s %d\n", __func__, enable);
 
 	if (enable) {
 		ret = sensor_cm130_init(subdev, 1);
@@ -3395,12 +3395,14 @@ static int sensor_cm130_enum_fsize(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_frame_size_enum *frame)
 {
-	dprintk("%s()\n", __func__);
+	dprintk("%s(): index = %d\n", __func__, frame->index);
 	if (frame->index >= ARRAY_SIZE(supported_resolutions))
 		return -ENODEV;
 
 	frame->max_width = supported_resolutions[frame->index].width;
 	frame->max_height = supported_resolutions[frame->index].height;
+	dprintk("%s(): max_width = %d\n", __func__, frame->max_width);
+	dprintk("%s(): max_height = %d\n", __func__, frame->max_height);
 	/*
 	if (frame->index >= ARRAY_SIZE(sensor_sizes_cm130pc20))
 		return -ENODEV;
@@ -3422,8 +3424,9 @@ static int sensor_cm130_enum_finterval(struct v4l2_subdev *sd,
 		if ((frame->width == supported_resolutions[i].width) &&
 		    (frame->height == supported_resolutions[i].height)) {
 			frame->interval.numerator = 1;
-			frame->interval.denominator =
-				supported_resolutions[i].interval[frame->index];
+			frame->interval.denominator =	supported_resolutions[i].interval[frame->index];
+    	dprintk("%s(): [%d]th width = %d\n", __func__, i, frame->width);
+    	dprintk("%s(): [%d]th height = %d\n", __func__, i, frame->height);
 			return false;
 		}
 	}
