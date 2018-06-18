@@ -15,8 +15,21 @@
 #include <linux/miscdevice.h>
 #include <linux/types.h>
 #include <linux/ioctl.h>
+#include <linux/input.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/workqueue.h>
 
 #include <asm/uaccess.h>
+
+#define RELEASED      0
+#define PRESSED       1
+
+#define TCHKEY_CHECK_COUNT 15
+#define DETSIG_CHECK_COUNT 15
+
+#define TCHKEY_CHECK_DELAY 10
+#define DETSIG_CHECK_DELAY 10
 
 // HA, Zigbee
 #define MISC_SET_SLAVE_BOOT_OUT    		0x10
@@ -64,6 +77,9 @@
 #define ZIGBEE_RESET_HOLD		0
 #define ZIGBEE_RESET_RELEASE	1
 
+static irqreturn_t call_key_irq_handler(int irq, void *dev_id);
+static irqreturn_t det_ir_irq_handler(int irq, void *dev_id);
+
 struct sds_misc_platform_data {
 	struct device *sec_sysfs;
 	/*
@@ -83,13 +99,176 @@ struct sds_misc_platform_data {
 	int gpio_powerSwHold;
 };
 
+struct input_dev *input_dev;
+
 struct sds_misc_platform_data *pdata;
 static int g_is_device_open = 0;
 static int testValue = -1;
+static int sds_misc_debug = 0;
+static int is_call_key_processing = 0;
+static int is_ir_det_processing = 0;
+
+void func_workqueue_det_ir(struct work_struct *data);
+DECLARE_WORK(det_ir_wq, func_workqueue_det_ir);
+
+void func_workqueue_call_key(struct work_struct *data);
+DECLARE_WORK(call_key_wq, func_workqueue_call_key);
+
+//SKJ 20180501 : for Door long-run test
+enum { AUTO_CALL_STOP = 0, AUTO_CALL_START = 1, AUTO_CALL_RUN = 2 };
+
+static int gndoor_call_state = AUTO_CALL_STOP;
+static int gndoor_call_count = 0;
+static struct timer_list door_call_wakeup_timer;
+void func_door_call_wakeup_timer(unsigned long arg)
+{
+  int door_call_gpio_value = 0;
+  
+  door_call_gpio_value = gpio_get_value(pdata->gpio_doorCallDet);
+	printk("%s(): Call gpio value = %d... 25s period\n",__func__, door_call_gpio_value);
+
+  if(door_call_gpio_value == 1)
+  {
+  	schedule_work(&call_key_wq);
+	printk("%s(): auto test count = %d\n",__func__, ++gndoor_call_count);
+  }
+
+  if(gndoor_call_state == AUTO_CALL_RUN)
+  {
+  	door_call_wakeup_timer.expires = get_jiffies_64() + (25*HZ);
+  	add_timer(&door_call_wakeup_timer);
+  }
+}
+
+// call key
+static irqreturn_t call_key_irq_handler(int irq, void *dev_id){
+
+	if(!is_call_key_processing)
+	{
+		is_call_key_processing = 1;
+		if(sds_misc_debug>0) {
+			printk("\n[call_key_irq_handler] EXINT_CALL processing\n");
+		}
+		schedule_work(&call_key_wq);
+	}
+	
+	return IRQ_HANDLED;
+}
+
+void func_workqueue_call_key(struct work_struct *data)
+{	
+	int initial_gpio_det, cur_gpio_det = -1;
+	int i = 0;
+		
+	if(sds_misc_debug>1) {
+		printk("[func_workqueue_call_key] func_workqueue_call_key\n");
+	}
+	
+	mdelay(1);
+	
+	initial_gpio_det = gpio_get_value(pdata->gpio_doorCallDet);
+	if(sds_misc_debug>1) {
+		printk("[func_workqueue_call_key] initial_gpio_det = %d\n", initial_gpio_det);
+	}
+	for(i=0; i<TCHKEY_CHECK_COUNT; i++)
+	{
+		mdelay(TCHKEY_CHECK_DELAY);
+		cur_gpio_det = gpio_get_value(pdata->gpio_doorCallDet);
+		if(sds_misc_debug>1) {
+			printk("[func_workqueue_call_key] [try:%d] cur_gpio_det = %d\n", i, cur_gpio_det);
+		}
+		if(cur_gpio_det != initial_gpio_det)
+		{
+			if(sds_misc_debug>1) {
+				printk("[func_workqueue_call_key] cur_gpio_det != initial_gpio_det -> stop process\n");
+			}
+			break;
+		}
+	}
+	
+	if(i >= TCHKEY_CHECK_COUNT)
+	{
+		if(initial_gpio_det == 1)
+		{
+			if(sds_misc_debug>0) {
+				printk("[func_workqueue_call_key] call key pressed\n");
+			}
+			input_report_key(input_dev, KEY_F1, PRESSED);
+			input_sync(input_dev);
+			input_report_key(input_dev, KEY_F1, RELEASED);
+			input_sync(input_dev);
+		}
+	}
+	
+	is_call_key_processing = 0;
+}
+
+// ir key
+static irqreturn_t det_ir_irq_handler(int irq, void *dev_id){
+
+	if(!is_ir_det_processing)
+	{
+		is_ir_det_processing = 1;
+		if(sds_misc_debug>0) {
+			printk("\n[det_ir_irq_handler] EXINT_IR processing\n");
+		}
+		schedule_work(&det_ir_wq);
+	}
+	
+	return IRQ_HANDLED;
+}
+
+void func_workqueue_det_ir(struct work_struct *data)
+{	
+	int initial_gpio_det, cur_gpio_det = -1;
+	int i = 0;
+		
+	if(sds_misc_debug>1) {
+		printk("[func_workqueue_det_ir] func_workqueue_det_ir\n");
+	}
+	
+	mdelay(1);
+	
+	initial_gpio_det = gpio_get_value(pdata->gpio_doorIrDet);
+	if(sds_misc_debug>1) {
+		printk("[func_workqueue_det_ir] initial_gpio_det = %d\n", initial_gpio_det);
+	}
+	for(i=0; i<TCHKEY_CHECK_COUNT; i++)
+	{
+		mdelay(TCHKEY_CHECK_DELAY);
+		cur_gpio_det = gpio_get_value(pdata->gpio_doorIrDet);
+		if(sds_misc_debug>1) {
+			printk("[func_workqueue_det_ir] [try:%d] cur_gpio_det = %d\n", i, cur_gpio_det);
+		}
+		if(cur_gpio_det != initial_gpio_det)
+		{
+			if(sds_misc_debug>1) {
+				printk("[func_workqueue_det_ir] cur_gpio_det != initial_gpio_det -> stop process\n");
+			}
+			break;
+		}
+	}
+	
+	if(i >= TCHKEY_CHECK_COUNT)
+	{
+		if(initial_gpio_det == 1)
+		{
+			if(sds_misc_debug>0) {
+				printk("[func_workqueue_det_ir] door ir key pressed\n");
+			}
+			input_report_key(input_dev, KEY_F2, PRESSED);
+			input_sync(input_dev);
+			input_report_key(input_dev, KEY_F2, RELEASED);
+			input_sync(input_dev);
+		}
+	}
+	
+	is_ir_det_processing = 0;
+}
 
 static int device_open(struct inode *inode, struct file *file)
 {
-	printk("%s(): (%p)\n",__func__, file);
+  if(sds_misc_debug>1) printk("%s(): (%p)\n",__func__, file);
 
 	g_is_device_open++;
 
@@ -98,7 +277,7 @@ static int device_open(struct inode *inode, struct file *file)
 
 static int device_release(struct inode *inode, struct file *file)
 {
-	printk("%s(): (%p,%p)\n",__func__, inode, file);
+  if(sds_misc_debug>1) printk("%s(): (%p,%p)\n",__func__, inode, file);
 
 	g_is_device_open--;
 
@@ -119,7 +298,7 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
 {
 	int ret=0, val=0;
 
- 	printk("%s(): cmd %d\n",__func__,_IOC_NR(cmd));
+  if(sds_misc_debug>1) printk("%s(): cmd %d\n",__func__,_IOC_NR(cmd));
 	
 	switch (cmd) {
 
@@ -133,7 +312,7 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
 		//if (!IS_ERR(pdata->gpio_haBootSel))
 		if (pdata->gpio_haBootSel >= 0)
 		{
-			printk("%s(): Slave boot set(%d)\n",__func__,val);
+		  if(sds_misc_debug>0) printk("%s(): Slave boot set(%d)\n",__func__,val);
 			//gpiod_set_value(pdata->gpio_haBootSel, val);
 			gpio_set_value(pdata->gpio_haBootSel, val);
 		}
@@ -152,7 +331,7 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
 		//if (!IS_ERR(pdata->gpio_haReset))
 		if (pdata->gpio_haReset >= 0)
 		{
-			printk("%s(): Slave reset(%d)\n",__func__,val);
+		  if(sds_misc_debug>0) printk("%s(): Slave reset(%d)\n",__func__,val);
 			//gpiod_set_value(pdata->gpio_haReset, SLAVE_RESET_HOLD);
 			gpio_set_value(pdata->gpio_haReset, SLAVE_RESET_HOLD);
 			mdelay(100);
@@ -173,7 +352,7 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
   		}
 		if (pdata->gpio_zbBootSel >= 0)
 		{
-			printk("%s(): Zigbee boot set(%d)\n",__func__,val);
+		  if(sds_misc_debug>0) printk("%s(): Zigbee boot set(%d)\n",__func__,val);
 			gpio_set_value(pdata->gpio_zbBootSel, val);
 		}
 		else
@@ -190,7 +369,7 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
   		}
 		if (pdata->gpio_zbReset >= 0)
 		{
-			printk("%s(): Zigbee reset(%d)\n",__func__,val);
+		  if(sds_misc_debug>0) printk("%s(): Zigbee reset(%d)\n",__func__,val);
 			gpio_set_value(pdata->gpio_zbReset, ZIGBEE_RESET_HOLD);
 			mdelay(100);
 			gpio_set_value(pdata->gpio_zbReset, ZIGBEE_RESET_RELEASE);
@@ -209,12 +388,16 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
   		}
 		if (pdata->gpio_zarlinkReset >= 0)
 		{
-			printk("%s(): Zarlink reset(%d)\n",__func__,val);
+		  if(sds_misc_debug>0) printk("%s(): Zarlink reset(%d)\n",__func__,val);
 			
 			gpio_set_value(pdata->gpio_zarlinkReset, 0);
 			mdelay(100);
 			gpio_set_value(pdata->gpio_zarlinkReset, 1);
 			mdelay(10);
+
+#if 1 // SKJ 20180501 : Print "sys_prop" for Wi-Fi test command
+			printk("\n%s(): sys_prop: must be here...for Wi-Fi test command\n\n",__func__);
+#endif       
 		}
 		else
 			printk("%s(): gpio configure error\n",__func__);
@@ -231,7 +414,7 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
 		//if (!IS_ERR(pdata->gpio_pcmSelect))
 		if (pdata->gpio_pcmSelect >= 0)
 		{
-			printk("%s(): PCM Select(%d)\n",__func__,val);
+		  if(sds_misc_debug>0) printk("%s(): PCM Select(%d)\n",__func__,val);
 			//gpiod_set_value(pdata->gpio_pcmSelect, val);
 			gpio_set_value(pdata->gpio_pcmSelect, val);
 		}
@@ -248,7 +431,7 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
   		}
 		if (pdata->gpio_tspReset >= 0)
 		{
-			printk("%s(): Touch IC Reset(%d)\n",__func__,val);
+		  if(sds_misc_debug>0) printk("%s(): Touch IC Reset(%d)\n",__func__,val);
 			gpio_set_value(pdata->gpio_tspReset, val);
 		}
 		else
@@ -264,7 +447,7 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
   		}
 		if (pdata->gpio_doorPowerEnable >= 0)
 		{
-			printk("%s(): Door Power Enabe(%d)\n",__func__,val);
+		  if(sds_misc_debug>0) printk("%s(): Door Power Enabe(%d)\n",__func__,val);
 			gpio_set_value(pdata->gpio_doorPowerEnable, val);
 		}
 		else
@@ -347,7 +530,53 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
 			return -EFAULT;
 		}
  	}
+	case MISC_TEST_DEBUG_MSG:
+  {
+		if (copy_from_user((void *)&val, (void __user *)arg, sizeof(int)))
+		{
+  		printk("%s(): [ERR] invalid val %d\n",__func__, _IOC_NR(cmd));
+  		return -EINVAL;
+		}
 
+    if(val == 3)
+    {  	
+		if(gndoor_call_state == AUTO_CALL_STOP) {
+			printk("%s(): AUTO_CALL_START = %d (25sec period)\n",__func__,val);
+
+			gndoor_call_state = AUTO_CALL_RUN;
+			door_call_wakeup_timer.expires = get_jiffies_64() + (1*HZ);
+			add_timer(&door_call_wakeup_timer);
+		}
+		else
+			printk("%s(): auto call mode = %d\n",__func__, gndoor_call_state);
+	}
+    else
+    {
+  		sds_misc_debug = val;
+      gndoor_call_state = AUTO_CALL_STOP;
+  		printk("%s(): debug level = %d\n",__func__,val);
+    }
+    break;
+ 	}
+	
+  	{
+		if (pdata->gpio_doorIrDet >= 0)
+		{
+			val = pdata->gpio_doorIrDet;
+			if(copy_to_user((void __user *)arg, (void *)&val, sizeof(int)) >=0 )
+			{
+				printk("%s(): Door Ir Gpio = %d\n",__func__,val);
+				return 0;
+			}
+			else
+				return -EFAULT;
+		}
+		else
+		{
+			printk("%s(): gpio configure error\n",__func__);
+			return -EFAULT;
+		}
+ 	}
 	case MISC_TEST_SET:	// KJW only for test
   	{
   		if (copy_from_user((void *)&val, (void __user *)arg, sizeof(int)))
@@ -357,6 +586,20 @@ static long device_ioctl (struct file *filp, unsigned int cmd, unsigned long arg
   		}
 		testValue = val;
      	printk("%s(): MISC Set Test : Set Value is (%d)\n",__func__,testValue);
+		if(testValue == 1)
+		{
+			input_report_key(input_dev, KEY_F1, PRESSED);
+			input_sync(input_dev);
+			input_report_key(input_dev, KEY_F1, RELEASED);
+			input_sync(input_dev);
+		}
+		else if(testValue == 2)
+		{
+			input_report_key(input_dev, KEY_F2, PRESSED);
+			input_sync(input_dev);
+			input_report_key(input_dev, KEY_F2, RELEASED);
+			input_sync(input_dev);
+		}
   		break;
  	}
 	case MISC_TEST_GET:	// KJW only for test
@@ -454,6 +697,8 @@ static int sds_misc_gpio_configure(struct device *dev)
 
 static int sds_misc_gpio_initialize(struct device *dev)
 {
+	int ret;
+	
 	dev_err(dev, "%s()",__func__);
 	
 	/*
@@ -514,6 +759,10 @@ static int sds_misc_gpio_initialize(struct device *dev)
 		gpio_request(pdata->gpio_doorCallDet, "door_call_det");
 		gpio_export(pdata->gpio_doorCallDet, false);
 		gpio_direction_input(pdata->gpio_doorCallDet);		
+		ret = request_irq(gpio_to_irq(pdata->gpio_doorCallDet), call_key_irq_handler, IRQF_TRIGGER_RISING | IRQF_ONESHOT, "doorcall", NULL);
+		if(ret < 0){
+			dev_err(dev, "err DOOR_CALL irq request failed\n");
+	  }
 	}
 	
 	if (pdata->gpio_doorIrDet >= 0)
@@ -521,6 +770,10 @@ static int sds_misc_gpio_initialize(struct device *dev)
 		gpio_request(pdata->gpio_doorIrDet, "door_ir_det");
 		gpio_export(pdata->gpio_doorIrDet, false);
 		gpio_direction_input(pdata->gpio_doorIrDet);		
+		ret = request_irq(gpio_to_irq(pdata->gpio_doorIrDet), det_ir_irq_handler, IRQF_TRIGGER_RISING | IRQF_ONESHOT, "doorir", NULL);
+		if(ret < 0){
+			dev_err(dev, "err DOOR_CALL irq request failed\n");
+	  }
 	}
 	
 	if (pdata->gpio_tspReset >= 0)
@@ -565,6 +818,23 @@ static int sds_misc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pdata);
 	dev_info(&pdev->dev, "platform driver %s registered\n", pdev->name);
 	
+	input_dev = input_allocate_device();
+	input_dev->name = "sds_key";
+	input_dev->evbit[0] = BIT(EV_KEY);
+	input_dev->id.version = 0.001;
+
+	set_bit(KEY_F1 & KEY_MAX, input_dev->keybit);
+	set_bit(KEY_F2 & KEY_MAX, input_dev->keybit);
+	
+	ret = input_register_device(input_dev);
+	if (ret) 
+	{
+		dev_err(&pdev->dev, "Unable to register %s input device\n", input_dev->name);
+	}
+	
+	init_timer(&door_call_wakeup_timer);	
+	door_call_wakeup_timer.function = func_door_call_wakeup_timer;
+
 	dev_err(&pdev->dev, "%s() End",__func__);
 	return 0;
 }
