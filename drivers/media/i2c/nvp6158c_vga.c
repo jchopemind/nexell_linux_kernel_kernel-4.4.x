@@ -26,7 +26,7 @@
 #define CONFIG_CVBS
 #define INPUT_FORMAT	AHD20_SD_H960_NT	// AHD20_SD_H960_NT, AHD20_SD_H960_PAL
 // Debug
-static int debug = 1;
+static int debug = 0;
 #define dprintk(msg...)	if(debug)	{printk("nvp6158c_vga> " msg);}
 
 struct sensor_reg {
@@ -210,8 +210,8 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 
 	WARN_ON(!subdev);
 	
-	dprintk("%s()\n", __func__);
-	dev_info(&client->dev, "%s start(%d)\n", __func__, val);
+	dprintk("%s(): start(%d)\n", __func__, val);
+	//dev_info(&client->dev, "%s start(%d)\n", __func__, val);
 	
 	if(val == 0)	// stream off
 	{
@@ -283,7 +283,8 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 	gpio_i2c_write(client, 0xc9, 0x00);	//YH : 02 -> 00
 
 	/* all port enable */
-	gpio_i2c_write(client, 0xca, 0x66);
+	//gpio_i2c_write(client, 0xca, 0x66);
+	gpio_i2c_write(client, 0xca, 0x22);		//YH : vdo1만 enable
 
 	/* mux chid set */
 	gpio_i2c_write(client, 0xff, 0x00);
@@ -1697,8 +1698,8 @@ static int sensor_nvp6158c_s_stream(struct v4l2_subdev *subdev,
 	int ret = 0;
 	struct i2c_client *client = to_client(subdev);
 
-	dev_info(&client->dev, "%s %d\n", __func__, enable);
-	dprintk("%s()\n", __func__);
+	dprintk("%s(): enable(%d)\n", __func__, enable);
+	//dev_info(&client->dev, "%s %d\n", __func__, enable);
 
 	if (enable) {
 		ret = sensor_nvp6158c_init(subdev, 1);

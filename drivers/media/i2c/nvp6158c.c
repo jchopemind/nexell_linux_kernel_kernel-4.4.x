@@ -106,6 +106,7 @@ struct nvp6158c_state {
 	struct gpio_desc *enable_gpio;	// camera power
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *door_gpio;	// door-camera power
+	struct mutex		i2c_lock;
 };
 static struct timer_list my_timer;
 struct i2c_client *my_client;
@@ -239,6 +240,7 @@ void Bank_Dump(struct i2c_client *client, u8 bank)
 	}
 }
 
+static int ir_count = 0, fr_count = 0;
 static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 {
 	int ret, i, ch, port = 0;
@@ -257,10 +259,12 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 	
 	dprintk("%s(): start(%d)\n", __func__, val);
 	//dev_info(&client->dev, "%s start(%d)\n", __func__, val);
+	//mutex_lock(&state->i2c_lock);
 	
 	if(val == 0)	// stream off
 	{
-		if(host->i2c_addr)	// IR인 경우(vdo2)
+#if 1
+	if(host->i2c_addr)	// IR인 경우(vdo2)
 		{
 			dprintk("IR camera off\n");
 			client->addr = host->i2c_addr;
@@ -279,107 +283,129 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 			gpio_i2c_write(client, 0xCA, r_data);
 			return ret;
 		}
+#else		
+		return 0;
+#endif	
 	}
-	
-	
+	/*
 	if (host->i2c_addr)
 	{
 		client->addr = host->i2c_addr;
+	}
+	*/
+	if (host->i2c_addr)
+	{
+		if (ir_count)
+			return 0;
+		client->addr = host->i2c_addr;
 	
-		gpio_i2c_write(client, 0xFF, 0x01);
-		gpio_i2c_read(client, 0xCA, &r_data);
+		ret = gpio_i2c_write(client, 0xFF, 0x01);
+		if (ret)
+			pr_err("[%s] IR failed to write i2c - 0xFF\n", __func__);
+		ret = gpio_i2c_read(client, 0xCA, &r_data);
+		if (ret)
+			pr_err("[%s] IR failed to read i2c - 0xCA:0x%02x\n", __func__, r_data);
 		dprintk("reg(0xca) = 0x%02x\n", r_data);
 	
 		if((r_data&0x44) == 0x00)		// YH: FR ir output이 off인지 체크
 		{
 			r_data |= 0x44;
-			gpio_i2c_write(client, 0xCA, r_data);
+			ret = gpio_i2c_write(client, 0xCA, r_data);
+			if (ret)
+				pr_err("[%s] IR failed to write i2c - 0xCA:0x%02x\n", __func__, r_data);
 			//raptor3_output_set(client, 1, 2);
-		}			
+		}
+		//ir_count++;		
 		return ret;
 	}
+	
+	if (fr_count)
+		return 0;
 
-	/*
-	if(client->addr == 0x33)	return ret;	// YH: FR ir인 경우 init skip
-	
-	if (host->i2c_addr)
-		client->addr = host->i2c_addr;
-	*/
-	//else
-	//	return ret;		// YH : FR Color인 경우 init skip
-	
+
 	//init
 	video_output_colorbar_set(client);
 	/* set initialization value  */
 	for(ch = 0; ch < 4; ch++)
 	{
-		gpio_i2c_write(client, 0xFF, 0x05+ch);
-		gpio_i2c_write(client, 0xD5, 0x80);
-		gpio_i2c_write(client, 0x00, 0xD0); //clamp speed
-		gpio_i2c_write(client, 0x76, 0x00);
+		ret =gpio_i2c_write(client, 0xFF, 0x05+ch);
+		ret = gpio_i2c_write(client, 0xD5, 0x80);
+		ret = gpio_i2c_write(client, 0x00, 0xD0); //clamp speed
+		ret = gpio_i2c_write(client, 0x76, 0x00);
 	}
 
 	/* set NOVIDEO */
 	for(ch = 0; ch < 4; ch++)
 	{
-		gpio_i2c_write(client, 0xFF, 0x09);
-		gpio_i2c_write(client, 0x80 + (ch * 0x20), 0x00);
-		gpio_i2c_write(client, 0x81 + (ch * 0x20), 0x00);
+		ret = gpio_i2c_write(client, 0xFF, 0x09);
+		ret = gpio_i2c_write(client, 0x80 + (ch * 0x20), 0x00);
+		ret = gpio_i2c_write(client, 0x81 + (ch * 0x20), 0x00);
 
-		gpio_i2c_write(client, 0xFF, 0x05 + ch);
-		gpio_i2c_write(client, 0x2C, 0x00);
-		gpio_i2c_write(client, 0xB8, 0xB8);
-		gpio_i2c_write(client, 0xB9, 0xB2);
-		gpio_i2c_write(client, 0x25, 0xDC);
+		ret = gpio_i2c_write(client, 0xFF, 0x05 + ch);
+		ret = gpio_i2c_write(client, 0x2C, 0x00);
+		ret = gpio_i2c_write(client, 0xB8, 0xB8);
+		ret = gpio_i2c_write(client, 0xB9, 0xB2);
+		ret = gpio_i2c_write(client, 0x25, 0xDC);
 
 
-		gpio_i2c_write(client, 0xFF, 0x09);
-		gpio_i2c_write(client, 0x50 + (ch*4) , 0x30);
-		gpio_i2c_write(client, 0x51 + (ch*4) , 0x6F);
-		gpio_i2c_write(client, 0x52 + (ch*4) , 0x67);
-		gpio_i2c_write(client, 0x53 + (ch*4) , 0x48);
+		ret = gpio_i2c_write(client, 0xFF, 0x09);
+		ret = gpio_i2c_write(client, 0x50 + (ch*4) , 0x30);
+		ret = gpio_i2c_write(client, 0x51 + (ch*4) , 0x6F);
+		ret = gpio_i2c_write(client, 0x52 + (ch*4) , 0x67);
+		ret = gpio_i2c_write(client, 0x53 + (ch*4) , 0x48);
 
-		gpio_i2c_read(client, 0x44, &val_9x44);
+		ret = gpio_i2c_read(client, 0x44, &val_9x44);
 		val_9x44 &= ~(1 << ch);
 		val_9x44 |= (1 << ch);
-		gpio_i2c_write(client, 0x44 , val_9x44);
+		ret = gpio_i2c_write(client, 0x44 , val_9x44);
 	}
-	gpio_i2c_write(client, 0xff, 0x01);
+	ret = gpio_i2c_write(client, 0xff, 0x01);
 	/* set Port setting */
 	for(port = 1; port < 3; port++)
 	{
 		/* port channel sequence set */
 		if(port == 1)
 		{
-			gpio_i2c_write(client, 0xc0 + (port * 2), 0x10);
-			gpio_i2c_write(client, 0xc1 + (port * 2), 0x10);
+			ret = gpio_i2c_write(client, 0xc0 + (port * 2), 0x10);
+			ret = gpio_i2c_write(client, 0xc1 + (port * 2), 0x10);
 		}
 		else if(port == 2)
 		{
-			gpio_i2c_write(client, 0xc0 + (port * 2), 0x32);
-			gpio_i2c_write(client, 0xc1 + (port * 2), 0x32);
+			ret = gpio_i2c_write(client, 0xc0 + (port * 2), 0x32);
+			ret = gpio_i2c_write(client, 0xc1 + (port * 2), 0x32);
 		}
 	}
 	/* port 1mux set */
-	gpio_i2c_write(client, 0xc8, 0x00);	//YH : 20 -> 00
-	gpio_i2c_write(client, 0xc9, 0x00);	//YH : 02 -> 00
+	ret = gpio_i2c_write(client, 0xc8, 0x00);	//YH : 20 -> 00
+	ret = gpio_i2c_write(client, 0xc9, 0x00);	//YH : 02 -> 00
 
 	/* all port enable */
-	gpio_i2c_write(client, 0xca, 0x66);
-	//gpio_i2c_write(client, 0xca, 0x22);		// YH: vdo1만 enable
+	ret = gpio_i2c_write(client, 0xca, 0x66);
+	/*
+	gpio_i2c_read(client, 0xca, &r_data);
+	dprintk("reg(0xca) = 0x%02x\n", r_data);
+	if (host->i2c_addr){	
+		r_data |= 0x44;
+		gpio_i2c_write(client, 0xca, r_data);
+	}
+	else{
+		r_data |= 0x22;
+		gpio_i2c_write(client, 0xca, r_data);
+	}
+	*/
 
 	/* mux chid set */
-	gpio_i2c_write(client, 0xff, 0x00);
-	gpio_i2c_write(client, 0x55, 0x10);
-	gpio_i2c_write(client, 0x56, 0x10);
+	ret = gpio_i2c_write(client, 0xff, 0x00);
+	ret = gpio_i2c_write(client, 0x55, 0x10);
+	ret = gpio_i2c_write(client, 0x56, 0x10);
 
 	 // for image enhancement 3M RT upper format when cable distance 300M over
 	for(ch = 0; ch < 4; ch++)
 	{
-		 gpio_i2c_write(client, 0xff, 0x05 + ch );
-		 gpio_i2c_write(client, 0x50, 0xc6 );
+		 ret = gpio_i2c_write(client, 0xff, 0x05 + ch );
+		 ret = gpio_i2c_write(client, 0x50, 0xc6 );
 
-		 gpio_i2c_write(client, 0xff, 0x0a + (ch / 2));
+		 ret = gpio_i2c_write(client, 0xff, 0x0a + (ch / 2));
 
 		 gpio_i2c_write(client, 0x00 + ( 0x80 * (ch % 2)), 0x80 );
 		 gpio_i2c_write(client, 0x01 + ( 0x80 * (ch % 2)), 0x02 );
@@ -412,7 +438,7 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 		 gpio_i2c_write(client, 0x1c + ( 0x80 * (ch % 2)), 0xe2 );
 		 gpio_i2c_write(client, 0x1d + ( 0x80 * (ch % 2)), 0x20 );
 		 gpio_i2c_write(client, 0x1e + ( 0x80 * (ch % 2)), 0xd0 );
-		 gpio_i2c_write(client, 0x1f + ( 0x80 * (ch % 2)), 0xcc );
+		 ret = gpio_i2c_write(client, 0x1f + ( 0x80 * (ch % 2)), 0xcc );
 	 }
 	// common_setting
 	raptor3_def_set(client);
@@ -427,7 +453,7 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 		else
 			raptor3_output_set(client, i, 2);	//vin2 -- vdo1->vdo2 (IR)
 	}
-	msleep(100);
+	msleep(200);	// YH : wait for stable mode
 	
 #ifdef	CONFIG_CVBS	
 	//CVBS TEST
@@ -497,42 +523,9 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 	Bank_Dump(client, 11);
 	Bank_Dump(client, 13);
 	*/
-#if 0
-	/* Set page 0 */
-	ret = sensor_zn240_write_reg(client, ZN240_PAGE, 0x00);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to set page 0\n");
-		return ret;
-	}
-
-	ret = sensor_zn240_read_reg(client, 0x01, &id_h);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to read id_h\n");
-		return ret;
-	}
-
-	ret = sensor_zn240_read_reg(client, 0x02, &id_l);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to read id_l\n");
-		return ret;
-	}
-
-	dprintk("%s(): id=0x%02x, 0x%02x\n", __func__, id_h, id_l);
-	//dev_info(&client->dev, "id=0x%02x, 0x%02x\n", id_h, id_l);
-
-	/* init member */
-	ret = sensor_zn240_load_regs(subdev, zn240_init_setting,
-				ARRAY_SIZE(zn240_init_setting));
-	if (ret < 0) {
-		dev_err(&client->dev, "init_reg failed\n");
-		return ret;
-	}
-
-	dprintk("%s(): end\n", __func__);
-	//dev_info(&client->dev, "%s end\n", __func__);
-
-	msleep(100);
-#endif
+//quit:
+	//mutex_unlock(&state->i2c_lock);
+	//fr_count++;
 	return ret;
 }
 
@@ -1824,8 +1817,9 @@ static int sensor_nvp6158c_s_stream(struct v4l2_subdev *subdev,
 			goto p_err;
 		}
 	}
-
+	return ret;
 p_err:
+	pr_err("error [%s] enable:%d\n", __func__, enable);
 	return ret;
 }
 
@@ -2009,6 +2003,7 @@ int sensor_nvp6158c_probe(struct i2c_client *client,
 	}
 
 	nvp6158c_state->client = client;
+	//mutex_init(&nvp6158c_state->i2c_lock);
 
 	dev_info(&client->dev, "(%d)\n", ret);
 	return ret;
