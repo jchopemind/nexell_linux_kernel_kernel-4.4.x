@@ -43,6 +43,7 @@
 static int debug = 1;
 #define dprintk(msg...)	if(debug)	{printk("panel-simple> " msg);}
 
+
 struct panel_desc {
 	const struct drm_display_mode *modes;
 	unsigned int num_modes;
@@ -176,7 +177,9 @@ static int panel_simple_disable(struct drm_panel *panel)
 		msleep(p->desc->delay.disable);
 
 #ifdef CONFIG_LVDS_TO_EDP_EP126U
+/* YH : 20180525
 	DP_Tx_Power_Down(p->ddc);	
+*/
 #endif	
 
 	p->enabled = false;
@@ -192,10 +195,13 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	if (!p->prepared)
 		return 0;
 
-	if (p->enable_gpio)
 #ifdef CONFIG_LVDS_TO_EDP_EP126U
+/* YH : 20180525
+	if (p->enable_gpio)
 		gpiod_set_value_cansleep(p->enable_gpio, 0);
+*/
 #else
+	if (p->enable_gpio)
 		gpiod_set_value_cansleep(p->enable_gpio, 0);
 #endif	
 	regulator_disable(p->supply);
@@ -223,9 +229,15 @@ static int panel_simple_prepare(struct drm_panel *panel)
 		return err;
 	}
 
+#ifdef CONFIG_LVDS_TO_EDP_EP126U
+/* YH : 20180525
 	if (p->enable_gpio)
 		gpiod_set_value_cansleep(p->enable_gpio, 1);
-	
+*/	
+#else	
+	if (p->enable_gpio)
+		gpiod_set_value_cansleep(p->enable_gpio, 1);
+#endif	
 	if (p->desc->delay.prepare)
 		msleep(p->desc->delay.prepare);
 /*
@@ -241,13 +253,23 @@ static int panel_simple_prepare(struct drm_panel *panel)
 static int panel_simple_enable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
-	dprintk("%s()\n", __func__);
+	dprintk("%s(): brightness = %d\n", __func__, p->backlight->props.brightness);
 
 	if (p->enabled)
 		return 0;
 
 #ifdef CONFIG_LVDS_TO_EDP_EP126U
+/* YH : 20180525 
 	EP146Control_IRQ_Event(p->ddc);
+*/	
+	// YH: 20180605 LCD TEST
+	if(p->enable_gpio)
+	{
+		gpiod_set_value_cansleep(p->enable_gpio, 0);	// lcd power off
+		msleep(100);
+		gpiod_set_value_cansleep(p->enable_gpio, 1);	// lcd power on
+		msleep(200);
+	}
 #endif	
 
 	if (p->desc->delay.enable)
@@ -340,8 +362,11 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		return PTR_ERR(panel->supply);
 
 #ifdef CONFIG_LVDS_TO_EDP_EP126U	
+	//panel->enable_gpio = devm_gpiod_get_optional(dev, "enable",
+	//					     GPIOD_OUT_LOW);
 	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable",
-						     GPIOD_OUT_LOW);
+						     GPIOD_OUT_HIGH);
+	msleep(500);
 #else
 	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						     GPIOD_OUT_LOW);
@@ -351,8 +376,9 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		dev_err(dev, "failed to request GPIO: %d\n", err);
 		return err;
 	}
-	else
-  	dprintk("%s(): found enable GPIO\n", __func__);
+	if(panel->enable_gpio){
+		dprintk("%s(): found enable GPIO\n", __func__);
+	}
 
 #ifdef CONFIG_LVDS_TO_EDP_EP126U	
 	panel->reset_gpio = devm_gpiod_get_optional(dev, "reset",
@@ -362,9 +388,11 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		dev_err(dev, "failed to request GPIO: %d\n", err);
 		return err;
 	}
-	else
-  	dprintk("%s(): found reset GPIO\n", __func__);
+	if(panel->reset_gpio){
+		dprintk("%s(): found reset GPIO\n", __func__);
+	}
 #endif	
+
 
 	backlight = of_parse_phandle(dev->of_node, "backlight", 0);
 	if (backlight) {
@@ -384,8 +412,10 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		dev_err(dev, "failed to request GPIO: %d\n", err);
 		return err;
 	}
-	else
-  	dprintk("%s(): found backlight GPIO\n", __func__);
+	if(panel->blenable_gpio){
+		dprintk("%s(): found backlight GPIO\n", __func__);
+	}
+	
 #endif
 	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
 	if (ddc) {
@@ -405,6 +435,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		gpiod_set_value_cansleep(panel->reset_gpio, 1);
 		msleep(20);
 		init_ep126(panel->ddc);
+		EP146Control_IRQ_Event(panel->ddc);
 	}
 	/*
 	gpio = of_get_named_gpio(dev->of_node, "int-gpio", 0);
