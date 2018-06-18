@@ -230,16 +230,17 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	}
 
 #ifdef CONFIG_LVDS_TO_EDP_EP126U
-/* YH : 20180525
-	if (p->enable_gpio)
+	if (p->enable_gpio){
 		gpiod_set_value_cansleep(p->enable_gpio, 1);
-*/	
+		if (p->desc->delay.prepare)
+			msleep(p->desc->delay.prepare);
+	}
 #else	
 	if (p->enable_gpio)
 		gpiod_set_value_cansleep(p->enable_gpio, 1);
-#endif	
 	if (p->desc->delay.prepare)
 		msleep(p->desc->delay.prepare);
+#endif
 /*
 #ifdef CONFIG_LVDS_TO_EDP_EP126U
 	init_ep126(p->ddc);
@@ -406,7 +407,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	// KJW : add for get bl-gpio
 #ifdef CONFIG_LVDS_TO_EDP_EP126U	
 	panel->blenable_gpio = devm_gpiod_get_optional(dev, "backlight",
-						     GPIOD_OUT_LOW);
+						     GPIOD_OUT_HIGH);
 	if (IS_ERR(panel->blenable_gpio)) {
 		err = PTR_ERR(panel->blenable_gpio);
 		dev_err(dev, "failed to request GPIO: %d\n", err);
