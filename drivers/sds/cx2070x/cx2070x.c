@@ -144,7 +144,6 @@ enum {
 #undef __REG
 };
 
-#if 1 /* MYSEO */
 struct cx20703_reg
 {
 	unsigned short reg;
@@ -153,8 +152,8 @@ struct cx20703_reg
 
 void *glp_reg_cache;
 
+#if 1 //SKJ 20180501 : Org inital value
 static struct cx20703_reg cx2070x_initialize_register[] = {
-	/* Org inital value
 	{0x0F50, 0xFF}, // Slave mode for both DP1 & DP2
 	{0x0F51, 0xB0}, // Port 1 Control , Rx/Tx Enable , Left justified , 1-bit delay
 	{0x0F52, 0x03}, // 32 Clocks / Tx Clocks per Frame;
@@ -225,8 +224,9 @@ static struct cx20703_reg cx2070x_initialize_register[] = {
 	{0x11B1, 0x00}, // Voice Output0 Selection , 16K
 	{0x117D, 0x8B}, // DSP Init 0x117D = 0x84 : must be last order and +1
 	{0x0000, 0x00}
-	*/
-// Test initialvalue by KJW
+};
+#else // Test initialvalue by KJW
+static struct cx20703_reg cx2070x_initialize_register[] = {
 {0x100D, 0x00},
 {0x100E, 0x00},
 {0x1011, 0x00},
@@ -304,6 +304,7 @@ static struct cx20703_reg cx2070x_initialize_register[] = {
 {0x117D, 0x8B}, // DSP Init 0x117D = 0x84 : must be last order and +1
 {0x0000, 0x00}
 };
+#endif
 
 static void write_regs_cx2070x(struct i2c_client *i2c)
 {
@@ -322,7 +323,6 @@ static void write_regs_cx2070x(struct i2c_client *i2c)
 		next++;
 	}
 }
-#endif
 
 #if CX2070X_REG_WIDE
 typedef u16 cx2070x_reg_t;
