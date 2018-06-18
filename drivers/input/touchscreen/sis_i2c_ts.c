@@ -50,19 +50,18 @@ unsigned char sis_work_state;
 
 static int gpio_irq;
 static int gpio_reset;
+static int gpio_backlight;
 
 static struct workqueue_struct *sis_wq;
 struct sisTP_driver_data *TPInfo = NULL;
 static void sis_tpinfo_clear(struct sisTP_driver_data *TPInfo, int max);
 
-/*
 static struct timer_list tsp_wakeup_timer;
 void func_tsp_wakeup_timer(unsigned long arg)
 {
-	//printk("%s(): touch to working state\n",__func__);
+	printk("%s(): Make touchscreen to working state\n",__func__);
  	sis_work_state = MODE_WORKING;
 }
-*/
 
 void PrintBuffer(int start, int length, char* buf)
 {
@@ -433,16 +432,16 @@ static irqreturn_t sis_ts_irq_handler(int irq, void *dev_id)
 	struct sis_ts_data *ts = dev_id;
 	struct i2c_client *client = ts->client;
 	
-	if(sis_work_state == MODE_SUSPEND)
+	if(gpio_get_value(gpio_backlight) == 0 && sis_work_state == MODE_WORKING)
 	{
-		dev_err(&client->dev, "%s() : MODE_SUSPEND\n",__func__);
-		input_report_key(ts->input_dev, KEY_F1, PRESSED);
+		sis_work_state = MODE_IDLE;
+		input_report_key(ts->input_dev, KEY_F3, PRESSED);
 		input_sync(ts->input_dev);
-		input_report_key(ts->input_dev, KEY_F1, RELEASED);
+		input_report_key(ts->input_dev, KEY_F3, RELEASED);
 		input_sync(ts->input_dev);
 	
-		//tsp_wakeup_timer.expires = get_jiffies_64() + (1*HZ/2); //500ms
-		//add_timer(&tsp_wakeup_timer);
+		tsp_wakeup_timer.expires = get_jiffies_64() + (1*HZ/2); //500ms
+		add_timer(&tsp_wakeup_timer);
 	}
 	
 	disable_irq_nosync(ts->client->irq);
@@ -520,7 +519,7 @@ static int sis_ts_probe(
 	dev_err(dev, "%s() : configure gpios\n",__func__);
 	gpio_reset = of_get_named_gpio(dev->of_node, "reset-gpio", 0);
 	if (gpio_reset < 0) {
-		dev_err(dev, "cannot get reset-gpios %d\n",	gpio_reset);
+		dev_err(dev, "cannot get reset-gpio %d\n",	gpio_reset);
 		return gpio_reset;
 	}
 	gpio_direction_output(gpio_reset, 0);
@@ -530,10 +529,16 @@ static int sis_ts_probe(
 
 	gpio_irq = of_get_named_gpio(dev->of_node, "int-gpio", 0);
 	if (gpio_irq < 0) {
-		dev_err(dev, "cannot get int-gpios %d\n", gpio_irq);
+		dev_err(dev, "cannot get int-gpio %d\n", gpio_irq);
 		return gpio_irq;
 	}
 	gpio_direction_input(gpio_irq);
+	
+	gpio_backlight = of_get_named_gpio(dev->of_node, "backlight-gpio", 0);
+	if (gpio_backlight < 0) {
+		dev_err(dev, "cannot get backlight-gpio %d\n", gpio_backlight);
+		return gpio_backlight;
+	}
 	
 	dev_err(dev, "%s() : create_singlethread_workqueue\n",__func__);
 	sis_wq = create_singlethread_workqueue("sis_wq");
@@ -566,11 +571,11 @@ static int sis_ts_probe(
 	set_bit(KEY_BACK, ts->input_dev->keybit);
 	set_bit(KEY_MENU, ts->input_dev->keybit);
 	set_bit(KEY_HOME, ts->input_dev->keybit);
-	set_bit(KEY_F1 & KEY_MAX, ts->input_dev->keybit);
+	set_bit(KEY_F3 & KEY_MAX, ts->input_dev->keybit);
 	
 	sis_work_state = MODE_WORKING;
-	//init_timer(&tsp_wakeup_timer);
-	//tsp_wakeup_timer.function = func_tsp_wakeup_timer;
+	init_timer(&tsp_wakeup_timer);
+	tsp_wakeup_timer.function = func_tsp_wakeup_timer;
 
 	dev_err(dev, "%s() : devm_request_threaded_irq\n",__func__);
 	ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
