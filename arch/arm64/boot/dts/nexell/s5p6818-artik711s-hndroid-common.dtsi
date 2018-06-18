@@ -172,6 +172,7 @@
 			};
 			*/
 			
+			/* YH : 20180607 repo project sync
 			key_doorcall: key_doorcall {
 				nexell,pins = "gpioc-26";
 				nexell,pin-function = <NX_PIN_FUNC1>;
@@ -185,6 +186,7 @@
 				nexell,pin-pull = <NX_PIN_PULL_UP>;
 				nexell,pin-strength = <NX_PIN_STR0>;
 			};
+			*/
 
 			pmic_irq:pmic_irq{
 				nexell,pins = "alive-5";
@@ -238,7 +240,7 @@
 			mclk-in = <0>;
 			trans-mode = <0>;
 			frame-bit = <32>;
-			sample-rate = <16000>;
+			sample-rate = <8000>;	/* YH : 20180607 repo proj sync 16000 -> 8000 */
 			pre-supply-mclk = <1>;
 			dfs;
 			status = "okay";
@@ -337,10 +339,21 @@
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 0 10 NX_ACTION_END
 				>;
-				/* 
 				disable_seq = <
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
+				>;
+				/* 
+				enable_seq = <
+					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
+					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 0 10 NX_ACTION_END
+					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 0 10 NX_ACTION_END
+					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
+				>;
+				disable_seq = <
+					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
+					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
+					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 1 10 NX_ACTION_END
 				>;
 				*/
 			};
@@ -402,13 +415,11 @@
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 0 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
 				>;
-				/*
 				disable_seq = <
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 1 1 10 NX_ACTION_END
 					NX_ACTION_START NX_ACTION_TYPE_GPIO 2 1 10 NX_ACTION_END
 				>;
-				*/
 			};
 		};
 		decimator_3:decimator3@c0063000 {
@@ -442,12 +453,21 @@
 		zb_bootsel-gpio = <&gpio_c 28 0>;
 		pcm_select-gpio = <&gpio_a 0 0>;
 		door_power_en-gpio = <&gpio_d 8 0>;
-		/*door_call_det-gpio = <&gpio_c 26 0>;
-		door_ir_det-gpio = <&gpio_a 15 0>;*/
 		tsp_reset-gpio = <&gpio_d 4 0>;
 		zarlink_mode-gpio = <&gpio_a 4 0>;
 		zarlink_reset-gpio = <&gpio_a 5 0>;
 		power_sw_hold-gpio = <&alive_0 2 0>;
+
+		door_call_det-gpio = <&gpio_c 26 0>;
+		door_ir_det-gpio = <&gpio_a 15 0>;
+
+		/*interrupt-parent = <&gpio_c>;
+		interrupts = <26 IRQ_TYPE_EDGE_RISING>;
+		int-gpio = <&gpio_c 26 0>;
+
+		interrupt-parent = <&gpio_a>;
+		interrupts = <15 IRQ_TYPE_EDGE_RISING>;
+		int-gpio = <&gpio_a 15 0>;*/
 	};
 	
 	backlight: pwm-backlight {
@@ -479,7 +499,7 @@
 		/* interrupt-parent = <&gpio_c>; */
 		/* interrupts = <27 IRQ_TYPE_EDGE_RISING>; */
 		/* int-gpio = <&gpio_c 27 0>; */
-		/* backlight-gpios = <&gpio_b 8 0>; */
+		backlight-gpios = <&gpio_b 8 0>; /*SKJ 20180501 : backlight on/off */
 		
 		backlight = <&backlight>;
 		status = "okay";
@@ -496,7 +516,8 @@
 		gpios = <&gpio_a 17 0 /* sda */
 			&gpio_a 6 0 /* scl */
 			>;
-		i2c-gpio,delay-us = <100>;
+		/* SKJ 20180501 : set clk (100K) - <100> -> <1> */
+		i2c-gpio,delay-us = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
@@ -509,7 +530,8 @@
 		gpios = <&gpio_c 15 0
 			&gpio_c 16 0
 			>;
-		i2c-gpio,delay-us = <10>;
+		/* SKJ 20180501 : set clk (100K) - <10> -> <1> */
+		i2c-gpio,delay-us = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		
@@ -531,7 +553,8 @@
 		gpios = <&gpio_a 24 0 /* sda */
 			&gpio_a 23 0 /* scl */
 			>;
-		i2c-gpio,delay-us = <100>;
+		/* SKJ 20180501 : set clk (100K) - <100> -> <1> */
+		i2c-gpio,delay-us = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
@@ -617,7 +640,7 @@
 		#size-cells = <0>;
 		pinctrl-names = "default";
 		/*pinctrl-0 = <&key_wakeup0>, <&key_wakeup1>;*/
-		pinctrl-0 = <&key_doorcall>, <&key_irdet>;
+		/*pinctrl-0 = <&key_doorcall>, <&key_irdet>;*/
 
 		power {
 			label = "Power";
@@ -626,21 +649,25 @@
 			gpio-key,wakeup;
 		};
 		
+		/*
 		doorcall {
 			label = "DoorCall";
 			gpios = <&gpio_c 26 0>;
 			linux,code = <59>;			
-			/*linux,input-type = <0>;*/
+			linux,input-type = <0>;
 			debounce-interval = <200>;
+			gpio-key,wakeup;
 		};
 		
 		irdet {
 			label = "IrDet";
 			gpios = <&gpio_a 15 0>;
 			linux,code = <60>;			
-			/*linux,input-type = <0>;*/
+			linux,input-type = <0>;
 			debounce-interval = <150>;
+			gpio-key,wakeup;
 		};
+		*/
 
 		/*
 		wakeup0 {
@@ -760,7 +787,8 @@
 			&gpio_a 20 0 /* scl */
 			>;
 
-		i2c-gpio,delay-us = <100>;
+		/* SKJ 20180501 : set clk (100K) - <100> -> <1>   */
+		i2c-gpio,delay-us = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "okay";
@@ -949,7 +977,7 @@
 
 	dp_control {
 		clk_src_lv0 = <3>;
-		clk_div_lv0 = <16>;
+		clk_div_lv0 = <10>; /* YH : 16 -> 10*/
 		clk_src_lv1 = <7>;
 		clk_div_lv1 = <1>;
 		out_format = <3>;
@@ -1009,14 +1037,17 @@
 &i2c_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
+	/* SKJ 20180501 : set clk (400K) */
+	samsung,i2c-max-bus-freq = <400000>;
 	status = "okay";
 
-#if 0
+#if 1
 	/* KJW 20180501 : sis TSP */
 	touchscreen@5c {
 		compatible = "sis,sis_i2c_ts";
 		reg = <0x5c>;
 		reset-gpio = <&gpio_a 25 1>;
+		backlight-gpio = <&gpio_b 8 0>;
 		
 		interrupt-parent = <&alive_0>;
 		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
@@ -1046,7 +1077,8 @@
 &i2c_2 {
 	#address-cells = <1>;
 	#size-cells = <0>;
-	samsung,i2c-max-bus-freq = <100000>;
+	/* SKJ 20180501 : modify clk (100K -> 400K) */
+	samsung,i2c-max-bus-freq = <400000>;
 	status = "okay";
 
 	cx2070xctl: cx2070xctl@14 {
@@ -1088,7 +1120,7 @@
 	spidev@0 {
 		compatible = "linux,spidev";
 		reg = <0>;
-		spi-max-frequency = <20000000>;
+		spi-max-frequency = <25000000>;
 		controller-data {
 			samsung,spi-feedback-delay = <0>;
 		};
@@ -1101,7 +1133,7 @@
 	spidev@0 {
 		compatible = "linux,spidev";
 		reg = <0>;
-		spi-max-frequency = <20000000>;
+		spi-max-frequency = <25000000>;
 		controller-data {
 			samsung,spi-feedback-delay = <0>;
 		};
