@@ -26,7 +26,7 @@
 //#define FRAME_RATE_15
 //#define CONFIG_CVBS
 // Debug
-static int debug = 1;
+static int debug = 0;
 #define dprintk(msg...)	if(debug)	{printk("nvp6158c> " msg);}
 
 struct sensor_reg {
@@ -255,12 +255,12 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 
 	WARN_ON(!subdev);
 	
-	dprintk("%s()\n", __func__);
-	dev_info(&client->dev, "%s start(%d)\n", __func__, val);
+	dprintk("%s(): start(%d)\n", __func__, val);
+	//dev_info(&client->dev, "%s start(%d)\n", __func__, val);
 	
 	if(val == 0)	// stream off
 	{
-		if(host->i2c_addr)	// IRì¸ ê²½ìš°(vdo2)
+		if(host->i2c_addr)	// IRÀÎ °æ¿ì(vdo2)
 		{
 			dprintk("IR camera off\n");
 			client->addr = host->i2c_addr;
@@ -290,7 +290,7 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 		gpio_i2c_read(client, 0xCA, &r_data);
 		dprintk("reg(0xca) = 0x%02x\n", r_data);
 	
-		if((r_data&0x44) == 0x00)		// YH: FR ir outputì´ offì¸ì§€ ì²´í¬
+		if((r_data&0x44) == 0x00)		// YH: FR ir outputÀÌ offÀÎÁö Ã¼Å©
 		{
 			r_data |= 0x44;
 			gpio_i2c_write(client, 0xCA, r_data);
@@ -300,13 +300,13 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 	}
 
 	/*
-	if(client->addr == 0x33)	return ret;	// YH: FR irì¸ ê²½ìš° init skip
+	if(client->addr == 0x33)	return ret;	// YH: FR irÀÎ °æ¿ì init skip
 	
 	if (host->i2c_addr)
 		client->addr = host->i2c_addr;
 	*/
 	//else
-	//	return ret;		// YH : FR Colorì¸ ê²½ìš° init skip
+	//	return ret;		// YH : FR ColorÀÎ °æ¿ì init skip
 	
 	//init
 	video_output_colorbar_set(client);
@@ -366,7 +366,7 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 
 	/* all port enable */
 	gpio_i2c_write(client, 0xca, 0x66);
-	//gpio_i2c_write(client, 0xca, 0x22);		// YH: vdo1ë§Œ enable
+	//gpio_i2c_write(client, 0xca, 0x22);		// YH: vdo1¸¸ enable
 
 	/* mux chid set */
 	gpio_i2c_write(client, 0xff, 0x00);
@@ -517,7 +517,8 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 		return ret;
 	}
 
-	dev_info(&client->dev, "id=0x%02x, 0x%02x\n", id_h, id_l);
+	dprintk("%s(): id=0x%02x, 0x%02x\n", __func__, id_h, id_l);
+	//dev_info(&client->dev, "id=0x%02x, 0x%02x\n", id_h, id_l);
 
 	/* init member */
 	ret = sensor_zn240_load_regs(subdev, zn240_init_setting,
@@ -527,7 +528,8 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 		return ret;
 	}
 
-	dev_info(&client->dev, "%s end\n", __func__);
+	dprintk("%s(): end\n", __func__);
+	//dev_info(&client->dev, "%s end\n", __func__);
 
 	msleep(100);
 #endif
@@ -1805,8 +1807,8 @@ static int sensor_nvp6158c_s_stream(struct v4l2_subdev *subdev,
 	int ret = 0;
 	struct i2c_client *client = to_client(subdev);
 
-	dev_info(&client->dev, "%s %d\n", __func__, enable);
-	dprintk("%s()\n", __func__);
+	dprintk("%s(): enable(%d)\n", __func__, enable);
+	//dev_info(&client->dev, "%s %d\n", __func__, enable);
 
 	if (enable) {
 		ret = sensor_nvp6158c_init(subdev, 1);
@@ -1872,26 +1874,28 @@ static int sensor_nvp6158c_enum_fsize(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_frame_size_enum *frame)
 {
-	//YH : IR/Color Sensor êµ¬ë¶„
+	//YH : IR/Color Sensor ±¸ºÐ
 	struct i2c_client *client = to_client(sd); 
 	struct nvp6158c_state *state = to_state(sd);
 	struct i2c_info *host = v4l2_get_subdev_hostdata(sd);
 
 	dprintk("%s()\n", __func__);
+	/*
 	//YH : 
 	
 	if (frame->index >= ARRAY_SIZE(supported_resolutions))
 		return -ENODEV;
+		
+	*/
+	//frame->max_width = supported_resolutions[frame->index].width;
+  //frame->max_height = supported_resolutions[frame->index].height;
 
-	frame->max_width = supported_resolutions[frame->index].width;
-	frame->max_height = supported_resolutions[frame->index].height;
-	/*
 	if (frame->index >= ARRAY_SIZE(sensor_sizes_nvp6158c))
 		return -ENODEV;
 
 	frame->max_width = sensor_sizes_nvp6158c[frame->index].width;
 	frame->max_height = sensor_sizes_nvp6158c[frame->index].height;
-	*/
+
 	return 0;
 }
 
@@ -1913,7 +1917,7 @@ static int sensor_nvp6158c_enum_finterval(struct v4l2_subdev *sd,
 		}
 	}
 	*/
-	/*
+	
 	for (i = 0; i < ARRAY_SIZE(supported_resolutions); i++) {
 		if ((frame->width == supported_resolutions[i].width) &&
 		    (frame->height == supported_resolutions[i].height)) {
@@ -1923,12 +1927,13 @@ static int sensor_nvp6158c_enum_finterval(struct v4l2_subdev *sd,
 			return false;
 		}
 	}
-	*/
-	// YH : í•´ìƒë„ ê³ ì •
+	/*
+	// YH : ÇØ»óµµ °íÁ¤
 	frame->interval.numerator = 1;
 	frame->interval.denominator = 30;
 	return false;
-	//return -EINVAL;
+	*/
+	return -EINVAL;
 }
 
 static int sensor_nvp6158c_s_param(struct v4l2_subdev *sd,
@@ -1972,7 +1977,7 @@ static const struct media_entity_operations media_ops = {
 int sensor_nvp6158c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
-	dprintk("%s()\n", __func__);
+	dprintk("%s(): start\n", __func__);
 	int ret, err = 0;
 	struct v4l2_subdev *subdev_module;
 	struct nvp6158c_state *nvp6158c_state;
