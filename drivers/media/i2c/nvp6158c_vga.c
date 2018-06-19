@@ -111,6 +111,7 @@ struct reg_value {
 	u8 mask;
 	u32 delay_ms;
 };
+static void default_init(struct i2c_client *client);
 
 static inline struct nvp6158c_state *to_state(struct v4l2_subdev *subdev)
 {
@@ -194,6 +195,7 @@ void debug_i2c(unsigned long data)
 	mod_timer(&my_timer, jiffies + msecs_to_jiffies(1000) );
 }
 */
+static int init_flag = 0;
 static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 {
 	int ret, i, ch, port = 0;
@@ -201,7 +203,6 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 	struct nvp6158c_state *state = to_state(subdev);
 	struct i2c_info *host = v4l2_get_subdev_hostdata(subdev);
 	u8 id_h = 0, id_l = 0;
-	//unsigned char def_fmt = TVI_FHD_30P;
 	unsigned char def_fmt = INPUT_FORMAT;	//CVBS TEST
 	unsigned char r_data, val_9x44;
 	//CVBS
@@ -213,6 +214,25 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 	dprintk("%s(): start(%d)\n", __func__, val);
 	//dev_info(&client->dev, "%s start(%d)\n", __func__, val);
 	
+	if (host->i2c_addr)
+		client->addr = host->i2c_addr;
+		
+	dprintk("output disable!\n");	
+	gpio_i2c_write(client, 0xFF, 0x01);
+	gpio_i2c_read(client, 0xCA, &r_data);
+	r_data &= 0x99;
+	gpio_i2c_write(client, 0xCA, r_data);
+  
+  if(init_flag == 0)
+  {
+    default_init(client);
+    init_flag = 1;
+  }
+  
+  if(val == 0)
+    return ret;
+
+#if 0	
 	if(val == 0)	// stream off
 	{
 		dprintk("Door camera off\n");
@@ -346,16 +366,13 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 			raptor3_output_set(client, i, 2);	//vin2 -- vdo1->vdo2
 	}
 	msleep(200);	// YH : wait for stable mode
-	
-/*	
-#ifdef	CONFIG_CVBS	
-	//CVBS TEST
-	__fmtdef[0] = AHD20_SD_H960_NT;	//AHD20_SD_H960_NT -> AHD20_SD_SH720_NT
-	__fmtdef[1] = AHD20_SD_H960_NT;	//AHD20_SD_H960_NT -> AHD20_SD_SH720_NT
-	raptor3_on_video_set(client, 0, AHD20_SD_H960_NT);
-	raptor3_output_set(client, 0, 1);
-#endif	
-*/
+#endif  
+
+  msleep(500);
+  dprintk("output enable!\n",__func__);
+	gpio_i2c_write(client, 0xFF, 0x01);
+	gpio_i2c_write(client, 0xca, 0x22);		//YH : vdo1만 enable
+
 	/*
 	//Test-ColorPattern
 	gpio_i2c_write(client, 0xff, 0x05);
@@ -395,80 +412,133 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 	setup_timer(&my_timer, debug_i2c, 0);
 	ret = mod_timer(&my_timer, jiffies + msecs_to_jiffies(1000) );
 	*/
-	/*
-	//All Bank
-	for(ch=0; ch<9; ch++) 
+	return ret;
+}
+
+static void default_init(struct i2c_client *client)
+{
+	int ret, i, ch, port = 0;
+	unsigned char def_fmt = INPUT_FORMAT;	//CVBS TEST
+	unsigned char r_data, val_9x44;
+	//CVBS
+	__fmtdef[0] = INPUT_FORMAT;
+	__fmtdef[1] = INPUT_FORMAT;	
+
+	dprintk("%s()\n", __func__);
+	
+	//init
+	video_output_colorbar_set(client);
+	/* set initialization value  */
+	for(ch = 0; ch < 4; ch++)
 	{
-		gpio_i2c_write(client, 0xff, ch);
-		dprintk("Dump Bank(%d)!\n", ch);
-		for(i=0; i<256; i++)
+		gpio_i2c_write(client, 0xFF, 0x05+ch);
+		gpio_i2c_write(client, 0xD5, 0x80);
+		gpio_i2c_write(client, 0x00, 0xD0); //clamp speed
+		gpio_i2c_write(client, 0x76, 0x00);
+	}
+
+	/* set NOVIDEO */
+	for(ch = 0; ch < 4; ch++)
+	{
+		gpio_i2c_write(client, 0xFF, 0x09);
+		gpio_i2c_write(client, 0x80 + (ch * 0x20), 0x00);
+		gpio_i2c_write(client, 0x81 + (ch * 0x20), 0x00);
+
+		gpio_i2c_write(client, 0xFF, 0x05 + ch);
+		gpio_i2c_write(client, 0x2C, 0x00);
+		gpio_i2c_write(client, 0xB8, 0xB8);
+		gpio_i2c_write(client, 0xB9, 0xB2);
+		gpio_i2c_write(client, 0x25, 0xDC);
+
+
+		gpio_i2c_write(client, 0xFF, 0x09);
+		gpio_i2c_write(client, 0x50 + (ch*4) , 0x30);
+		gpio_i2c_write(client, 0x51 + (ch*4) , 0x6F);
+		gpio_i2c_write(client, 0x52 + (ch*4) , 0x67);
+		gpio_i2c_write(client, 0x53 + (ch*4) , 0x48);
+
+		gpio_i2c_read(client, 0x44, &val_9x44);
+		val_9x44 &= ~(1 << ch);
+		val_9x44 |= (1 << ch);
+		gpio_i2c_write(client, 0x44 , val_9x44);
+	}
+	gpio_i2c_write(client, 0xff, 0x01);
+	/* set Port setting */
+	for(port = 1; port < 3; port++)
+	{
+		/* port channel sequence set */
+		if(port == 1)
 		{
-			gpio_i2c_read(client, i, &r_data);
-			dprintk("Reg(0x%02x), Val(0x%02x)\n", i, r_data);
+			gpio_i2c_write(client, 0xc0 + (port * 2), 0x10);
+			gpio_i2c_write(client, 0xc1 + (port * 2), 0x10);
+		}
+		else if(port == 2)
+		{
+			gpio_i2c_write(client, 0xc0 + (port * 2), 0x32);
+			gpio_i2c_write(client, 0xc1 + (port * 2), 0x32);
 		}
 	}
+	/* port 1mux set */
+	gpio_i2c_write(client, 0xc8, 0x00);	//YH : 20 -> 00
+	gpio_i2c_write(client, 0xc9, 0x00);	//YH : 02 -> 00
+
+	/* all port enable */
+	//gpio_i2c_write(client, 0xca, 0x22);		//YH : vdo1만 enable
+
+	/* mux chid set */
+	gpio_i2c_write(client, 0xff, 0x00);
+	gpio_i2c_write(client, 0x55, 0x10);
+	gpio_i2c_write(client, 0x56, 0x10);
+
+	 // for image enhancement 3M RT upper format when cable distance 300M over
+	for(ch = 0; ch < 4; ch++)
+	{
+		 gpio_i2c_write(client, 0xff, 0x05 + ch );
+		 gpio_i2c_write(client, 0x50, 0xc6 );
+
+		 gpio_i2c_write(client, 0xff, 0x0a + (ch / 2));
+
+		 gpio_i2c_write(client, 0x00 + ( 0x80 * (ch % 2)), 0x80 );
+		 gpio_i2c_write(client, 0x01 + ( 0x80 * (ch % 2)), 0x02 );
+		 gpio_i2c_write(client, 0x02 + ( 0x80 * (ch % 2)), 0x04 );
+		 gpio_i2c_write(client, 0x03 + ( 0x80 * (ch % 2)), 0x80 );
+		 gpio_i2c_write(client, 0x04 + ( 0x80 * (ch % 2)), 0x06 );
+		 gpio_i2c_write(client, 0x05 + ( 0x80 * (ch % 2)), 0x07 );
+		 gpio_i2c_write(client, 0x06 + ( 0x80 * (ch % 2)), 0x80 );
+		 gpio_i2c_write(client, 0x07 + ( 0x80 * (ch % 2)), 0x07 );
+		 gpio_i2c_write(client, 0x08 + ( 0x80 * (ch % 2)), 0x03 );
+		 gpio_i2c_write(client, 0x09 + ( 0x80 * (ch % 2)), 0x08 );
+		 gpio_i2c_write(client, 0x0a + ( 0x80 * (ch % 2)), 0x04 );
+		 gpio_i2c_write(client, 0x0b + ( 0x80 * (ch % 2)), 0x10 );
+		 gpio_i2c_write(client, 0x0c + ( 0x80 * (ch % 2)), 0x08 );
+		 gpio_i2c_write(client, 0x0d + ( 0x80 * (ch % 2)), 0x1f );
+		 gpio_i2c_write(client, 0x0e + ( 0x80 * (ch % 2)), 0x2e );
+		 gpio_i2c_write(client, 0x0f + ( 0x80 * (ch % 2)), 0x08 );
+		 gpio_i2c_write(client, 0x10 + ( 0x80 * (ch % 2)), 0x38 );
+		 gpio_i2c_write(client, 0x11 + ( 0x80 * (ch % 2)), 0x35 );
+		 gpio_i2c_write(client, 0x12 + ( 0x80 * (ch % 2)), 0x00 );
+		 gpio_i2c_write(client, 0x13 + ( 0x80 * (ch % 2)), 0x20 );
+		 gpio_i2c_write(client, 0x14 + ( 0x80 * (ch % 2)), 0x0d );
+		 gpio_i2c_write(client, 0x15 + ( 0x80 * (ch % 2)), 0x80 );
+		 gpio_i2c_write(client, 0x16 + ( 0x80 * (ch % 2)), 0x54 );
+		 gpio_i2c_write(client, 0x17 + ( 0x80 * (ch % 2)), 0xb1 );
+		 gpio_i2c_write(client, 0x18 + ( 0x80 * (ch % 2)), 0x91 );
+		 gpio_i2c_write(client, 0x19 + ( 0x80 * (ch % 2)), 0x1c );
+		 gpio_i2c_write(client, 0x1a + ( 0x80 * (ch % 2)), 0x87 );
+		 gpio_i2c_write(client, 0x1b + ( 0x80 * (ch % 2)), 0x92 );
+		 gpio_i2c_write(client, 0x1c + ( 0x80 * (ch % 2)), 0xe2 );
+		 gpio_i2c_write(client, 0x1d + ( 0x80 * (ch % 2)), 0x20 );
+		 gpio_i2c_write(client, 0x1e + ( 0x80 * (ch % 2)), 0xd0 );
+		 gpio_i2c_write(client, 0x1f + ( 0x80 * (ch % 2)), 0xcc );
+	 }
+	// common_setting
+	raptor3_def_set(client);
 	
-	
-	//BANK0 dump
-	gpio_i2c_write(client, 0xff, 0);
-	dprintk("Dump Bank0!\n");
-	for(i=0; i<256; i++)
-	{
-		gpio_i2c_read(client, i, &r_data);
-		dprintk("Reg(0x%02x), Val(0x%02x)\n", i, r_data);
-	}
-	//BANK1 dump
-	gpio_i2c_write(client, 0xff, 1);
-	dprintk("Dump Bank1!\n");
-	for(i=0; i<256; i++)
-	{
-		gpio_i2c_read(client, i, &r_data);
-		dprintk("Reg(0x%02x), Val(0x%02x)\n", i, r_data);
-	}
-	//BANK0 dump
-	gpio_i2c_write(client, 0xff, 8);
-	dprintk("Dump Bank8!\n");
-	for(i=0; i<256; i++)
-	{
-		gpio_i2c_read(client, i, &r_data);
-		dprintk("Reg(0x%02x), Val(0x%02x)\n", i, r_data);
-	}
-	*/
-#if 0
-	/* Set page 0 */
-	ret = sensor_zn240_write_reg(client, ZN240_PAGE, 0x00);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to set page 0\n");
-		return ret;
-	}
+	// video format setting
+	raptor3_on_video_set(client, 0, def_fmt);
+	// video output port setting
+	raptor3_output_set(client, 0, 1);	//vin1 -- ->vdo1
 
-	ret = sensor_zn240_read_reg(client, 0x01, &id_h);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to read id_h\n");
-		return ret;
-	}
-
-	ret = sensor_zn240_read_reg(client, 0x02, &id_l);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to read id_l\n");
-		return ret;
-	}
-
-	dev_info(&client->dev, "id=0x%02x, 0x%02x\n", id_h, id_l);
-
-	/* init member */
-	ret = sensor_zn240_load_regs(subdev, zn240_init_setting,
-				ARRAY_SIZE(zn240_init_setting));
-	if (ret < 0) {
-		dev_err(&client->dev, "init_reg failed\n");
-		return ret;
-	}
-
-	dev_info(&client->dev, "%s end\n", __func__);
-
-	msleep(100);
-#endif
-	return ret;
 }
 #if 0
 void raptor3_def_set(struct i2c_client *client)
