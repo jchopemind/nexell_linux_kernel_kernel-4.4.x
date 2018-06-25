@@ -1326,7 +1326,8 @@ static int nx_clipper_s_stream(struct v4l2_subdev *sd, int enable)
 						me->module);
 				goto UP_AND_OUT;
 			}
-			if (me->crop.width == 0 || me->crop.height == 0) {
+
+			if ((me->crop.width == 0) || (me->crop.height == 0)) {
 				me->crop.left = 0;
 				me->crop.top = 0;
 				me->crop.width = me->width;
@@ -1435,15 +1436,30 @@ static int nx_clipper_g_crop(struct v4l2_subdev *sd,
 			     struct v4l2_crop *crop)
 {
 	struct nx_clipper *me = v4l2_get_subdevdata(sd);
-	/* crop->c = me->crop; */
-	memcpy(&crop->c, &me->crop, sizeof(struct v4l2_rect));
-	return 0;
+	struct v4l2_subdev *remote = get_remote_source_subdev(me);
+	int err;
+
+	err = v4l2_subdev_call(remote, video, g_crop, crop);
+	if (!err) {
+		pr_debug("[%s] crop %d:%d:%d:%d\n", __func__, crop->c.left,
+				crop->c.top, crop->c.width, crop->c.height);
+	}
+	return err;
 }
 
 static int nx_clipper_s_crop(struct v4l2_subdev *sd,
 			     const struct v4l2_crop *crop)
 {
 	struct nx_clipper *me = v4l2_get_subdevdata(sd);
+
+	if ((NX_ATOMIC_READ(&me->state) &
+				(STATE_MEM_RUNNING | STATE_CLIP_RUNNING))) {
+		if ((me->crop.width != crop->c.width) ||
+				(me->crop.height != crop->c.height) ||
+				(me->crop.left != crop->c.left) ||
+				(me->crop.top != crop->c.top))
+			return -EINVAL;
+	}
 
 	if (crop->c.left >= me->width || crop->c.top >= me->height)
 		return -EINVAL;
