@@ -321,12 +321,6 @@ static void set_vip(struct nx_decimator *me, u32 clip_width, u32 clip_height)
 	nx_vip_set_decimator_format(me->module, me->mem_fmt);
 }
 
-static int get_decimator_crop(struct v4l2_subdev *remote,
-			    struct v4l2_crop *crop)
-{
-	return v4l2_subdev_call(remote, video, g_crop, crop);
-}
-
 static int setup_link(struct media_pad *src, struct media_pad *dst)
 {
 	struct media_link *link;
@@ -373,8 +367,6 @@ static int nx_decimator_s_stream(struct v4l2_subdev *sd, int enable)
 			}
 		}
 		if (!(NX_ATOMIC_READ(&me->state) & STATE_RUNNING)) {
-			struct v4l2_crop crop;
-
 			if (nx_vip_is_running(me->module, VIP_DECIMATOR)) {
 				pr_err("VIP%d Decimator is already running\n",
 						me->module);
@@ -389,13 +381,7 @@ static int nx_decimator_s_stream(struct v4l2_subdev *sd, int enable)
 				goto UP_AND_OUT;
 			}
 
-			ret = get_decimator_crop(remote, &crop);
-			if (ret) {
-				WARN_ON(1);
-				goto UP_AND_OUT;
-			}
-
-			set_vip(me, crop.c.width, crop.c.height);
+			set_vip(me, me->width, me->height);
 			ret = register_irq_handler(me);
 			if (ret) {
 				WARN_ON(1);
@@ -554,21 +540,26 @@ static int nx_decimator_g_crop(struct v4l2_subdev *sd,
 			     struct v4l2_crop *crop)
 {
 	struct nx_decimator *me = v4l2_get_subdevdata(sd);
+	struct v4l2_subdev *remote = get_remote_source_subdev(me);
+	int err;
 
-	crop->c.left = 0;
-	crop->c.top = 0;
-	crop->c.width = me->width;
-	crop->c.height = me->height;
-
-	return 0;
+	err = v4l2_subdev_call(remote, video, g_crop, crop);
+	if (!err) {
+		pr_debug("[%s] crop %d:%d:%d:%d\n", __func__, crop->c.left,
+				crop->c.top, crop->c.width, crop->c.height);
+	}
+	return err;
 }
 
 static int nx_decimator_s_crop(struct v4l2_subdev *sd,
 			     const struct v4l2_crop *crop)
 {
 	struct nx_decimator *me = v4l2_get_subdevdata(sd);
+	struct v4l2_subdev *remote = get_remote_source_subdev(me);
+	int ret;
 
-	if (me->width < crop->c.width || me->height < crop->c.height) {
+	if (me->width < (crop->c.width - crop->c.left) ||
+			me->height < (crop->c.height - crop->c.top)) {
 		dev_err(&me->pdev->dev, "Invalid scaledown size.\n");
 		dev_err(&me->pdev->dev, "The size must be less than");
 		dev_err(&me->pdev->dev, " w(%d)xh(%d)\n",
@@ -577,9 +568,13 @@ static int nx_decimator_s_crop(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	me->width = crop->c.width;
-	me->height = crop->c.height;
-
+	ret = v4l2_subdev_call(remote, video, s_crop, crop);
+	if (!ret) {
+		pr_debug("[%s] crop %d:%d:%d:%d\n", __func__, crop->c.left,
+				crop->c.top, crop->c.width, crop->c.height);
+		me->width = crop->c.width;
+		me->height = crop->c.height;
+	}
 	return 0;
 }
 
