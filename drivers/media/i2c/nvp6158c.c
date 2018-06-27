@@ -26,7 +26,7 @@
 //#define FRAME_RATE_15
 //#define CONFIG_CVBS
 // Debug
-static int debug = 1;
+static int debug = 0;
 #define dprintk(msg...)	if(debug)	{printk("nvp6158c> " msg);}
 
 struct sensor_reg {
@@ -267,11 +267,11 @@ static int sensor_nvp6158c_init(struct v4l2_subdev *subdev, u32 val)
 	gpio_i2c_read(client, 0xCA, &r_data);
 	if(init_flag == 0)  // init first time 
 	{
+		  init_flag = 1;
 	    r_data &= 0x99;
 		  gpio_i2c_write(client, 0xCA, r_data);
 		  
 		  default_init(client);
-		  init_flag = 1;
 	}
 	else if(host->i2c_addr) // IR
 	{
