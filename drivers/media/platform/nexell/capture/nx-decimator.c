@@ -337,7 +337,7 @@ static int setup_link(struct media_pad *src, struct media_pad *dst)
  */
 static int nx_decimator_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	int ret;
+	int ret = 0;
 	struct nx_decimator *me = v4l2_get_subdevdata(sd);
 	u32 module = me->module;
 	struct v4l2_subdev *remote;
@@ -370,6 +370,8 @@ static int nx_decimator_s_stream(struct v4l2_subdev *sd, int enable)
 			if (nx_vip_is_running(me->module, VIP_DECIMATOR)) {
 				pr_err("VIP%d Decimator is already running\n",
 						me->module);
+				nx_video_clear_buffer(&me->vbuf_obj);
+				ret = -EBUSY;
 				goto UP_AND_OUT;
 			}
 			hostdata_back = v4l2_get_subdev_hostdata(remote);
@@ -420,7 +422,7 @@ static int nx_decimator_s_stream(struct v4l2_subdev *sd, int enable)
 UP_AND_OUT:
 	up(&me->s_stream_sem);
 
-	return 0;
+	return ret;
 }
 
 /**
