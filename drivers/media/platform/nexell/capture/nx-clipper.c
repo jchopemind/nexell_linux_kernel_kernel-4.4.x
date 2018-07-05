@@ -1274,7 +1274,7 @@ static void set_vip(struct nx_clipper *me)
  */
 static int nx_clipper_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	int ret;
+	int ret = 0;
 	struct nx_clipper *me = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev *remote;
 #ifdef CONFIG_VIDEO_NEXELL_CLIPPER
@@ -1324,6 +1324,8 @@ static int nx_clipper_s_stream(struct v4l2_subdev *sd, int enable)
 					nx_vip_is_running(me->module, VIP_CLIPPER)) {
 				pr_err("VIP%d Clipper is already running\n",
 						me->module);
+				nx_video_clear_buffer(&me->vbuf_obj);
+				ret = -EBUSY;
 				goto UP_AND_OUT;
 			}
 
@@ -1633,7 +1635,6 @@ static int nx_clipper_set_fmt(struct v4l2_subdev *sd,
 		me->mem_fmt = nx_mem_fmt;
 		me->width = format->format.width;
 		me->height = format->format.height;
-
 		memset(&fmt, 0, sizeof(fmt));
 		fmt.format.width = me->width;
 		fmt.format.height = me->height;
