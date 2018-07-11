@@ -168,6 +168,7 @@ static void hw_child_enable(struct nx_vip *me, u32 child)
 {
 	bool clipper_enable = false;
 	bool decimator_enable = false;
+	int timeout = 0;
 
 	if (child & VIP_CLIPPER)
 		clipper_enable = true;
@@ -176,18 +177,42 @@ static void hw_child_enable(struct nx_vip *me, u32 child)
 		decimator_enable = true;
 
 	if (me->clipper_enable != clipper_enable ||
-			me->decimator_enable != decimator_enable) {
-		if (!clipper_enable && !decimator_enable) {
-			nx_vip_clear_interrupt_pending_all(me->module);
-			nx_vip_set_vipenable(me->module, false, false, false,
-						false);
-		} else {
+	    me->decimator_enable != decimator_enable) {
+		if (clipper_enable || decimator_enable) {
 			nx_vip_set_interrupt_enable_all(me->module, false);
 			nx_vip_clear_interrupt_pending_all(me->module);
+			nx_vip_set_vipenable(me->module, true, true, false,
+					     false);
+			while (nx_vip_get_interrupt_pending(me->module,
+							    VIP_OD_INT) == 0) {
+				udelay(1000);
+				timeout++;
+				if (timeout == 1000) {
+					pr_err("enable timeout\n");
+					break;
+				}
+			}
 			nx_vip_set_vipenable(me->module, true, true,
-						clipper_enable, decimator_enable);
-			nx_vip_set_interrupt_enable(me->module,
-							VIP_OD_INT, true);
+					     clipper_enable, decimator_enable);
+			nx_vip_clear_interrupt_pending_all(me->module);
+			nx_vip_set_interrupt_enable(me->module, VIP_OD_INT,
+						    true);
+		} else {
+			nx_vip_clear_interrupt_pending_all(me->module);
+			nx_vip_set_vipenable(me->module, true, true, false,
+					     false);
+			while (nx_vip_get_interrupt_pending(me->module,
+							    VIP_OD_INT) == 0) {
+				udelay(1000);
+				timeout++;
+				if (timeout == 1000) {
+					pr_err("disable timeout\n");
+					break;
+				}
+			}
+			nx_vip_set_vipenable(me->module, false, false, false,
+					     false);
+			nx_vip_set_interrupt_enable_all(me->module, false);
 		}
 	}
 	/* nx_vip_dump_register(me->module); */
