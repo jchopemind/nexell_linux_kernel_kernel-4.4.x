@@ -280,13 +280,13 @@
 			external_sync = <1>; /* 601 */
 			padclk_sel = <0>;
 			h_syncpolarity = <1>; /* HSYNC active high */
-			v_syncpolarity = <0>; /* VSYNC active low */
+			v_syncpolarity = <1>; /* VSYNC active high */
 			h_frontporch = <0>;
 			h_syncwidth = <0>;
 			h_backporch = <0>;
-			v_frontporch = <2048>;
+			v_frontporch = <0>;
 			v_syncwidth = <0>;
-			v_backporch = <0>;		
+			v_backporch = <0>;
 			interlace = <0>;
 			status = "okay";
 
